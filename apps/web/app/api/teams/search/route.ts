@@ -17,6 +17,10 @@ export async function GET(request: Request): Promise<Response> {
   const { env } = getRequestContext() as { env: Env };
   const db = env.DB;
 
+  // DEBUG: Check if we are connected to the right DB
+  const countResult = await db.prepare('SELECT COUNT(*) as count FROM teams').first<{ count: number }>();
+  console.log(`[api/teams/search] Total teams in DB: ${countResult?.count}`);
+
   try {
     let rows: { tid: number; name: string; active_division_count: number; last_game_at: string | null }[];
 
@@ -47,7 +51,8 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     return Response.json({ results: rows });
-  } catch {
+  } catch (err) {
+    console.error('[api/teams/search] Search error:', err);
     return Response.json({ results: [] }, { status: 500 });
   }
 }

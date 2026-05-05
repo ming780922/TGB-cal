@@ -2,11 +2,18 @@
   "name": "tgb-calendar",
   "version": "1.0.0",
   "private": true,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev:worker": "pnpm --filter @tgb-calendar/worker dev",
+    "dev": "concurrently --names 'worker,web' --kill-others \"pnpm dev:worker\" \"pnpm dev:web\"",
+    "dev:worker": "pnpm --filter @tgb-calendar/worker dev --persist-to ../../.wrangler/state",
     "dev:web": "pnpm --filter @tgb-calendar/web dev",
-    "build:web": "pnpm --filter @tgb-calendar/web build",
+    "build:web": "pnpm --filter @tgb-calendar/web pages:build",
+    "db:migrate": "npx wrangler d1 migrations apply tgb-calendar --local --persist-to .wrangler/state --config apps/worker/wrangler.toml",
     "scrape": "node packages/scraper/index.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

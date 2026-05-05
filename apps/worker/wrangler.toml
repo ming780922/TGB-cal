@@ -7,4 +7,5 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "tgb-calendar"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "../../db/migrations"
 

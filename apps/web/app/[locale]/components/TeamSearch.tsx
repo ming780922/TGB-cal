@@ -14,7 +14,7 @@ type Props = {
   locale: string;
 };
 
-export default function TeamSearch({ locale }: Props) {
+export function TeamSearch({ locale }: Props) {
   const t = useTranslations('home');
   const [inputValue, setInputValue] = useState('');
   const [results, setResults] = useState<TeamResult[] | null>(null);
@@ -27,8 +27,8 @@ export default function TeamSearch({ locale }: Props) {
 
     const timer = setTimeout(() => {
       fetch(`/api/teams/search?q=${encodeURIComponent(inputValue)}`)
-        .then((res) => res.json())
-        .then((data: TeamResult[]) => setResults(data))
+        .then((res) => res.json() as Promise<{ results: TeamResult[] }>)
+        .then((data) => setResults(data.results))
         .catch(() => setResults([]));
     }, 200);
 
