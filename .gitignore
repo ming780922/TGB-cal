@@ -1,0 +1,25 @@
+# Worktrees
+.worktrees/
+
+# Node.js
+node_modules/
+dist/
+build/
+.next/
+*.log
+.env
+.env.local
+.env*.local
+
+# Cloudflare
+.wrangler/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.tmp
