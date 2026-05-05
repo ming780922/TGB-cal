@@ -1,0 +1,36 @@
+{
+  "home": {
+    "title": "TGB Basketball League Schedule Subscription",
+    "searchPlaceholder": "Search team name...",
+    "noResults": "No teams found",
+    "hotTeams": "Popular Teams"
+  },
+  "team": {
+    "subscribeSection": "Subscribe to Schedule",
+    "addToApple": "Add to Apple Calendar",
+    "addToGoogle": "Add to Google Calendar",
+    "copyLink": "Copy Link",
+    "copied": "Copied!",
+    "activeSeasons": "Active Seasons",
+    "pastSeason": "Last Season",
+    "ended": "Ended",
+    "wins": "W",
+    "losses": "L",
+    "draws": "D",
+    "rank": "Rank",
+    "scheduledGames": "Scheduled Games",
+    "nextGame": "Next Game",
+    "completedGames": "Completed",
+    "noSchedule": "No scheduled games"
+  },
+  "nav": {
+    "home": "Home",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy"
+  },
+  "meta": {
+    "siteTitle": "TGB iCal Subscription",
+    "teamPageTitle": "{teamName} Schedule | TGB iCal",
+    "teamPageDescription": "{teamName} TGB Basketball League schedule, currently in {season} {division}. Subscribe via iCal for game notifications."
+  }
+}

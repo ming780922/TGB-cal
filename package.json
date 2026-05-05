@@ -1,0 +1,13 @@
+{
+  "name": "tgb-calendar",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev:worker": "npm run dev --workspace=apps/worker",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:web": "npm run build --workspace=apps/web",
+    "scrape": "node packages/scraper/index.js"
+  }
+}

@@ -1,0 +1,9 @@
+name = "tgb-calendar-web"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tgb-calendar"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
