@@ -16,7 +16,17 @@ export default async function LocaleLayout({ children, params: { locale } }: Pro
     <html lang={locale}>
       <body>
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <header>
+            <a href={`/${locale}`}>TGB iCal</a>
+            <nav>
+              <a href={locale === 'zh' ? '/en' : '/zh'}>
+                {locale === 'zh' ? 'EN' : '中文'}
+              </a>
+            </nav>
+          </header>
+          <main>
+            {children}
+          </main>
         </NextIntlClientProvider>
       </body>
     </html>
