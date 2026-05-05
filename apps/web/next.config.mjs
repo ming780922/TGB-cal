@@ -10,7 +10,7 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 if (process.env.NODE_ENV === 'development') {
   await setupDevPlatform({
-    persistTo: path.resolve(__dirname, '../../.wrangler/state')
+    persistTo: path.resolve(__dirname, './.wrangler/state')
   });
 }
 
