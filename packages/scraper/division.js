@@ -89,8 +89,8 @@ export async function scrapeDivision(gid, levelId) {
     const cells = $(row).find('td');
     if (cells.length < 2) return;
 
-    // A standings row must contain at least one team link
-    const tidLinks = $(row).find('a[href*="tid="]');
+    // A standings row must contain at least one team link (team.php?tid=N)
+    const tidLinks = $(row).find('a[href*="team.php?tid="], a[href*="tid="]');
     if (!tidLinks.length) return;
 
     // Use the first tid link as the team for this row
@@ -119,7 +119,7 @@ export async function scrapeDivision(gid, levelId) {
 
       teamDivisions.push({
         tid,
-        level_id: levelId,
+        level_id: parseInt(levelId),
         wins: isNaN(wins) ? 0 : wins,
         losses: isNaN(losses) ? 0 : losses,
         draws: isNaN(draws) ? 0 : draws,
@@ -129,6 +129,7 @@ export async function scrapeDivision(gid, levelId) {
   });
 
   // --- Parse games / schedule ---
+  // TGB uses event.php?eid={N} for game detail links
   const games = [];
   const seenGameIds = new Set();
 
@@ -136,60 +137,59 @@ export async function scrapeDivision(gid, levelId) {
     const cells = $(row).find('td');
     if (cells.length < 3) return;
 
-    // A schedule row must contain a game link
-    const gameLink = $(row).find('a[href*="game_id="]').first();
+    // A schedule row must contain an event link (eid=)
+    const gameLink = $(row).find('a[href*="eid="]').first();
     if (!gameLink.length) return;
 
-    const gameIdMatch = gameLink.attr('href')?.match(/game_id=(\d+)/);
-    if (!gameIdMatch) {
-      console.warn(`[scrapeDivision] Row has game link but no game_id: ${$(row).html()?.slice(0, 80)}`);
-      return;
-    }
+    const gameIdMatch = gameLink.attr('href')?.match(/eid=(\d+)/);
+    if (!gameIdMatch) return;
     const gameId = parseInt(gameIdMatch[1]);
     if (seenGameIds.has(gameId)) return;
     seenGameIds.add(gameId);
 
-    // Find home/away team links
+    // Find home/away team links (team.php?tid=N)
     const teamLinks = $(row).find('a[href*="tid="]');
-    if (teamLinks.length < 2) {
-      console.warn(`[scrapeDivision] Game ${gameId} row has fewer than 2 team links`);
-    }
     const homeTid = parseInt($(teamLinks[0]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
     const awayTid = parseInt($(teamLinks[1]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
 
-    // Find date cell (contains a date-like string)
-    const cellTexts = cells.toArray().map((c) => $(c).text().trim());
-    const dateText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}|\d{1,2}\/\d{1,2}/.test(t));
-    if (!dateText) {
-      console.warn(`[scrapeDivision] Game ${gameId}: no date text found in row`);
+    // Date cell: contains "YYYY/MM/DD" pattern; date and time may be in same cell separated by whitespace
+    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
+    const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
+    if (!dateCellText) {
+      console.warn(`[scrapeDivision] Game ${gameId}: no date found in row`);
       return;
     }
-
-    const scheduledAt = parseTaiwanDateTime(dateText);
+    // Combine date and time from the same cell (e.g. "2026/03/07 17:00")
+    const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
+    const scheduledAt = parseTaiwanDateTime(dateTimeStr);
     if (scheduledAt === null) {
-      console.warn(`[scrapeDivision] Game ${gameId}: could not parse date "${dateText}"`);
+      console.warn(`[scrapeDivision] Game ${gameId}: could not parse date "${dateTimeStr}"`);
       return;
     }
     const scheduledAtLocal = toLocalFormat(scheduledAt);
 
-    // Find venue: cell text that contains a venue-related keyword
+    // Venue: first cell text matching venue keywords; exclude the event-type tag (#...)
     const venue =
-      cellTexts.find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t))?.trim() || null;
+      cellTexts
+        .flatMap((t) => t.split(/\s+/))
+        .find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t) && !t.startsWith('#'))
+        ?.trim() || null;
 
-    // Find scores: format "80:75", "80-75", or two adjacent numeric cells
+    // Scores: TGB puts home score and away score in separate <p> elements in one <td>
+    // The score cell contains two numeric paragraphs (no separator between them)
     let homeScore = null;
     let awayScore = null;
     let status = 'scheduled';
 
-    const scoreText = cellTexts.find((t) => /^\d+\s*[:\-]\s*\d+$/.test(t));
-    if (scoreText) {
-      const scoreParts = scoreText.split(/[:\-]/).map((s) => parseInt(s.trim()));
-      if (scoreParts.length === 2 && !isNaN(scoreParts[0]) && !isNaN(scoreParts[1])) {
-        homeScore = scoreParts[0];
-        awayScore = scoreParts[1];
+    cells.toArray().forEach((cell) => {
+      const paras = $(cell).find('p').toArray().map((p) => $(p).text().trim());
+      const nums = paras.filter((t) => /^\d+$/.test(t)).map(Number);
+      if (nums.length >= 2) {
+        homeScore = nums[0];
+        awayScore = nums[1];
         status = 'completed';
       }
-    }
+    });
 
     games.push({
       game_id: gameId,
@@ -212,7 +212,7 @@ export async function scrapeDivision(gid, levelId) {
 
   return {
     league: {
-      gid,
+      gid: parseInt(gid),
       name: fullTitle,
       venue_area: null,
       day_of_week: null,
@@ -220,8 +220,8 @@ export async function scrapeDivision(gid, levelId) {
       league_type: 'regular',
     },
     division: {
-      level_id: levelId,
-      gid,
+      level_id: parseInt(levelId),
+      gid: parseInt(gid),
       season_label: seasonLabel,
       division_label: divisionLabel,
       full_title: fullTitle,

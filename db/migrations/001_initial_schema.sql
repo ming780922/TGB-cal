@@ -3,7 +3,7 @@
 
 -- 1. leagues
 CREATE TABLE IF NOT EXISTS leagues (
-  gid          TEXT PRIMARY KEY,
+  gid          INTEGER PRIMARY KEY,
   name         TEXT NOT NULL,
   venue_area   TEXT,
   day_of_week  TEXT,
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS leagues (
 
 -- 2. divisions
 CREATE TABLE IF NOT EXISTS divisions (
-  level_id        TEXT PRIMARY KEY,
-  gid             TEXT NOT NULL REFERENCES leagues(gid),
+  level_id        INTEGER PRIMARY KEY,
+  gid             INTEGER NOT NULL REFERENCES leagues(gid),
   season_label    TEXT,
   division_label  TEXT,
   full_title      TEXT,
@@ -30,13 +30,13 @@ CREATE TABLE IF NOT EXISTS divisions (
 
 -- 3. teams
 CREATE TABLE IF NOT EXISTS teams (
-  tid                  TEXT PRIMARY KEY,
-  name                 TEXT NOT NULL,
-  name_normalized      TEXT,
-  last_game_at         INTEGER,
+  tid                   INTEGER PRIMARY KEY,
+  name                  TEXT NOT NULL,
+  name_normalized       TEXT,
+  last_game_at          INTEGER,
   active_division_count INTEGER NOT NULL DEFAULT 0,
-  created_at           INTEGER NOT NULL DEFAULT (unixepoch()),
-  updated_at           INTEGER NOT NULL DEFAULT (unixepoch())
+  created_at            INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at            INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 -- 4. teams_fts (FTS5 virtual table)
@@ -63,8 +63,8 @@ END;
 
 -- 5. team_divisions
 CREATE TABLE IF NOT EXISTS team_divisions (
-  tid      TEXT NOT NULL REFERENCES teams(tid) ON DELETE CASCADE,
-  level_id TEXT NOT NULL REFERENCES divisions(level_id) ON DELETE CASCADE,
+  tid      INTEGER NOT NULL REFERENCES teams(tid) ON DELETE CASCADE,
+  level_id INTEGER NOT NULL REFERENCES divisions(level_id) ON DELETE CASCADE,
   wins     INTEGER NOT NULL DEFAULT 0,
   losses   INTEGER NOT NULL DEFAULT 0,
   draws    INTEGER NOT NULL DEFAULT 0,
@@ -76,10 +76,10 @@ CREATE TABLE IF NOT EXISTS team_divisions (
 
 -- 6. games
 CREATE TABLE IF NOT EXISTS games (
-  game_id           TEXT PRIMARY KEY,
-  level_id          TEXT NOT NULL REFERENCES divisions(level_id),
-  home_tid          TEXT REFERENCES teams(tid),
-  away_tid          TEXT REFERENCES teams(tid),
+  game_id           INTEGER PRIMARY KEY,
+  level_id          INTEGER NOT NULL REFERENCES divisions(level_id),
+  home_tid          INTEGER REFERENCES teams(tid),
+  away_tid          INTEGER REFERENCES teams(tid),
   scheduled_at      INTEGER NOT NULL,
   scheduled_at_local TEXT NOT NULL,
   venue             TEXT,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS games (
 
 -- 7. team_feed_meta
 CREATE TABLE IF NOT EXISTS team_feed_meta (
-  tid             TEXT PRIMARY KEY REFERENCES teams(tid) ON DELETE CASCADE,
+  tid             INTEGER PRIMARY KEY REFERENCES teams(tid) ON DELETE CASCADE,
   last_modified_at INTEGER NOT NULL,
   game_count      INTEGER NOT NULL DEFAULT 0,
   etag            TEXT NOT NULL,
