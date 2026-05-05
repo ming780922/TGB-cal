@@ -6,10 +6,6 @@ import { requireAuth } from './auth';
 interface LeagueInput {
   gid: number;
   name: string;
-  venue_area?: string;
-  day_of_week?: string;
-  gender?: string;
-  league_type: string;
 }
 
 interface DivisionInput {
@@ -82,7 +78,6 @@ function validate(body: unknown): ScrapeUpsertBody | string {
   const league = b.league as Record<string, unknown>;
   if (typeof league.gid !== 'number') return 'Missing required field: league.gid';
   if (typeof league.name !== 'string') return 'Missing required field: league.name';
-  if (typeof league.league_type !== 'string') return 'Missing required field: league.league_type';
 
   if (!b.division || typeof b.division !== 'object') return 'Missing required field: division';
   const division = b.division as Record<string, unknown>;
@@ -140,32 +135,13 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
       if (!existing) {
         await env.DB.prepare(
-          `INSERT INTO leagues (gid, name, venue_area, day_of_week, gender, league_type, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
-          body.league.gid,
-          body.league.name,
-          body.league.venue_area ?? null,
-          body.league.day_of_week ?? null,
-          body.league.gender ?? null,
-          body.league.league_type,
-          now,
-          now
-        ).run();
+          `INSERT INTO leagues (gid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`
+        ).bind(body.league.gid, body.league.name, now, now).run();
         counts.inserted.leagues++;
       } else {
         await env.DB.prepare(
-          `UPDATE leagues SET name = ?, venue_area = ?, day_of_week = ?, gender = ?, league_type = ?, updated_at = ?
-           WHERE gid = ?`
-        ).bind(
-          body.league.name,
-          body.league.venue_area ?? null,
-          body.league.day_of_week ?? null,
-          body.league.gender ?? null,
-          body.league.league_type,
-          now,
-          body.league.gid
-        ).run();
+          `UPDATE leagues SET name = ?, updated_at = ? WHERE gid = ?`
+        ).bind(body.league.name, now, body.league.gid).run();
         counts.updated.leagues++;
       }
     }

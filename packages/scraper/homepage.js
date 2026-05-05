@@ -16,9 +16,24 @@ export async function scrapeHomepage() {
 
   const html = await response.text();
   const $ = cheerio.load(html);
-  const divisions = new Map(); // key: `${gid}-${level_id}`, value: {gid, level_id}
 
-  // Parse all anchor tags for division links
+  // Build a map of gid → league_name from the dropdown menu structure:
+  // <li><a href="#"><div>2025年第二季和平信義週六男子組</div></a>
+  //   <ul><li><a href="division.php?gid=180&level_id=...">...</a></li></ul>
+  // </li>
+  const gidNames = new Map();
+  $('a[href*="division.php"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(/gid=(\d+)/);
+    if (!m || gidNames.has(m[1])) return;
+    const sectionLi = $(el).closest('ul').parent();
+    const name = sectionLi.children('a[href="#"]').children('div').text().trim()
+      || sectionLi.children('a').first().text().trim();
+    if (name) gidNames.set(m[1], name);
+  });
+
+  const divisions = new Map(); // key: `${gid}-${level_id}`
+
   $('a[href*="division.php"]').each((_, el) => {
     const href = $(el).attr('href') || '';
     const match = href.match(/[?&]gid=(\d+).*?[?&]level_id=(\d+)|[?&]level_id=(\d+).*?[?&]gid=(\d+)/);
@@ -28,7 +43,11 @@ export async function scrapeHomepage() {
       if (!isNaN(gid) && !isNaN(levelId)) {
         const key = `${gid}-${levelId}`;
         if (!divisions.has(key)) {
-          divisions.set(key, { gid, level_id: levelId });
+          divisions.set(key, {
+            gid,
+            level_id: levelId,
+            league_name: gidNames.get(String(gid)) ?? null,
+          });
         }
       }
     }

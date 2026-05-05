@@ -51,7 +51,7 @@ function toLocalFormat(scheduledAt) {
  * @param {number} levelId - Division level ID
  * @returns {Promise<object>} Structured division data
  */
-export async function scrapeDivision(gid, levelId) {
+export async function scrapeDivision(gid, levelId, leagueName) {
   const url = `${TGB_BASE_URL}/division.php?gid=${gid}&level_id=${levelId}`;
   const response = await fetch(url, {
     headers: { 'User-Agent': 'TGBCalendarBot/1.0 (+https://tgb.ming060.com)' },
@@ -213,11 +213,7 @@ export async function scrapeDivision(gid, levelId) {
   return {
     league: {
       gid: parseInt(gid),
-      name: fullTitle,
-      venue_area: null,
-      day_of_week: null,
-      gender: null,
-      league_type: 'regular',
+      name: leagueName ?? fullTitle,
     },
     division: {
       level_id: parseInt(levelId),
