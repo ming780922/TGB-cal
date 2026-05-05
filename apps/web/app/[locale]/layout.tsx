@@ -27,6 +27,15 @@ export default async function LocaleLayout({ children, params: { locale } }: Pro
           <main>
             {children}
           </main>
+          <footer>
+            <a href={`/${locale}/terms`}>
+              {locale === 'zh' ? '使用者條款' : 'Terms of Use'}
+            </a>
+            {' · '}
+            <a href={`/${locale}/privacy`}>
+              {locale === 'zh' ? '隱私權政策' : 'Privacy Policy'}
+            </a>
+          </footer>
         </NextIntlClientProvider>
       </body>
     </html>
