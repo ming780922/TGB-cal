@@ -13,6 +13,7 @@ build/
 
 # Cloudflare
 .wrangler/
+.dev.vars
 
 # OS
 .DS_Store

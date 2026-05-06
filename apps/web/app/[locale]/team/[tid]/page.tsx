@@ -222,7 +222,7 @@ export default async function TeamPage({ params }: Props) {
             const nextGame = upcomingGames.find(g => g.level_id === div.level_id);
             const divScheduledCount = upcomingGames.filter(g => g.level_id === div.level_id).length;
             const opponentName = nextGame
-              ? (nextGame.home_tid === tid ? nextGame.away_name : nextGame.home_name)
+              ? (nextGame.home_tid === Number(tid) ? nextGame.away_name : nextGame.home_name)
               : null;
             return (
               <div key={div.level_id}>
@@ -255,7 +255,7 @@ export default async function TeamPage({ params }: Props) {
           <h2>{t('completedGames')}</h2>
           <ul>
             {completedGames.map(game => {
-              const isHome = game.home_tid === tid;
+              const isHome = game.home_tid === Number(tid);
               const opponent = isHome ? game.away_name : game.home_name;
               const score = isHome
                 ? `${game.home_score} - ${game.away_score}`
