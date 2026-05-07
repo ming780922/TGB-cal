@@ -59,17 +59,16 @@ function escapeText(text: string): string {
     .replace(/\n/g, '\\n');
 }
 
-function addHour(localTime: string): string {
-  // localTime: YYYYMMDDTHHmmSS, add 1 hour
-  const year = parseInt(localTime.slice(0, 4));
-  const month = parseInt(localTime.slice(4, 6)) - 1;
-  const day = parseInt(localTime.slice(6, 8));
-  const hour = parseInt(localTime.slice(9, 11));
-  const min = parseInt(localTime.slice(11, 13));
-  const sec = parseInt(localTime.slice(13, 15));
-  const d = new Date(Date.UTC(year, month, day, hour + 1, min, sec));
+function formatTaipei(timestamp: number): string {
+  // Convert Unix timestamp to YYYYMMDDTHHmmSS in Asia/Taipei (UTC+8)
+  const d = new Date((timestamp + 8 * 3600) * 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}`;
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00`;
+}
+
+function addHour(timestamp: number): string {
+  // localTime: YYYYMMDDTHHmmSS, add 1 hour
+  return formatTaipei(timestamp + 3600);
 }
 
 function nowUtc(): string {
@@ -105,8 +104,8 @@ export function generateIcal(team: TeamInfo, games: GameRow[]): string {
   for (const game of games) {
     const uid = `game-${game.game_id}@tgb.ming060.com`;
     const dtstamp = nowUtc();
-    const dtstart = game.scheduled_at_local;
-    const dtend = addHour(game.scheduled_at_local);
+    const dtstart = formatTaipei(game.scheduled_at);
+    const dtend = addHour(game.scheduled_at);
 
     const homeName = game.home_name ?? '???';
     const awayName = game.away_name ?? '???';
