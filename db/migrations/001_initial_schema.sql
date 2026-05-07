@@ -76,7 +76,6 @@ CREATE TABLE IF NOT EXISTS games (
   home_tid          INTEGER REFERENCES teams(tid),
   away_tid          INTEGER REFERENCES teams(tid),
   scheduled_at      INTEGER NOT NULL,
-  scheduled_at_local TEXT NOT NULL,
   venue             TEXT,
   home_score        INTEGER,
   away_score        INTEGER,

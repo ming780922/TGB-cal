@@ -106,7 +106,6 @@ CREATE TABLE games (
   home_tid           INTEGER,
   away_tid           INTEGER,
   scheduled_at       INTEGER NOT NULL,
-  scheduled_at_local TEXT    NOT NULL,
   venue              TEXT,
   home_score         INTEGER,
   away_score         INTEGER,
@@ -215,8 +214,8 @@ BEGIN:VEVENT
 UID:game-{game_id}@tgb.ming060.com
 SEQUENCE:{ical_sequence}
 DTSTAMP:{now utc}
-DTSTART;TZID=Asia/Taipei:{scheduled_at_local}
-DTEND;TZID=Asia/Taipei:{scheduled_at_local + 1hr}
+DTSTART;TZID=Asia/Taipei:{scheduled_at}
+DTEND;TZID=Asia/Taipei:{scheduled_at + 1hr}
 SUMMARY:{home_name} vs {away_name}                       ← 未完賽
 SUMMARY:{home_name} {score} - {score} {away_name}        ← 已完賽
 LOCATION:{完整地址} ({venue})

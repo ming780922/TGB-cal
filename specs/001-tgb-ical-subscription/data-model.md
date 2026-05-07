@@ -105,7 +105,6 @@ A single scheduled or completed game.
 | home_tid | INTEGER | FK → teams, nullable | Home team |
 | away_tid | INTEGER | FK → teams, nullable | Away team |
 | scheduled_at | INTEGER | NOT NULL | UTC unix timestamp |
-| scheduled_at_local | TEXT | NOT NULL | ISO-like local datetime, e.g., "20250315T190000" |
 | venue | TEXT | nullable | Short venue name (for venue map lookup) |
 | home_score | INTEGER | nullable | Home team score (null if not yet played) |
 | away_score | INTEGER | nullable | Away team score (null if not yet played) |
