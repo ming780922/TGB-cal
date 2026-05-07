@@ -55,6 +55,7 @@ function toLocalFormat(scheduledAt) {
  */
 export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideDivisionName) {
   const url = `${TGB_BASE_URL}/division.php?gid=${gid}&level_id=${levelId}`;
+  console.log(`[scrape] GET ${url}`);
   const response = await fetch(url, {
     headers: { 'User-Agent': 'TGBCalendarBot/1.0 (+https://tgb.ming060.com)' },
   });
@@ -74,6 +75,7 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     $('h3').first().text().trim() ||
     '';
   const fullTitle = overrideDivisionName || pageTitle || `Division ${levelId}`;
+  console.log(`[scrape] Processing division: ${fullTitle}`);
 
   // TGB titles are often like "2025春季聯盟 甲組" or "2025/2026秋冬季 A組"
   const seasonMatch = fullTitle.match(
@@ -109,15 +111,11 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
 
       const cellTexts = cells.toArray().map((c) => $(c).text().trim());
       
-      // Fixed TGB Standings Table Structure:
-      // Index 0: Rank (排名)
-      // Index 1: Team Name (隊伍)
-      // Index 2: Wins (勝場)
-      // Index 3: Losses (敗場)
-      
       const rank = parseInt(cellTexts[0]) || null;
       const wins = parseInt(cellTexts[2]) || 0;
       const losses = parseInt(cellTexts[3]) || 0;
+
+      console.log(`  - Team: [${tid}] ${name} (Rank: ${rank}, W: ${wins}, L: ${losses})`);
 
       teamDivisions.push({
         tid,
@@ -130,7 +128,6 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
   });
 
   // --- Parse games / schedule ---
-  // TGB uses event.php?eid={N} for game detail links
   const games = [];
   const seenGameIds = new Set();
 
@@ -157,17 +154,13 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     const awayTid = parseInt($(teamLinks[1]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
 
     // If no gameId from link, generate a stable synthetic one
-    // We use a large offset (1,000,000,000) to avoid collisions with real TGB IDs
     if (!gameId && homeTid && awayTid) {
-      // Find date for the hash
       const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
       const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
       if (dateCellText) {
         const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
         const scheduledAt = parseTaiwanDateTime(dateTimeStr);
         if (scheduledAt) {
-          // Stable synthetic ID: 1B + (timestamp % 100M) + (sum of tids % 100)
-          // This isn't perfect but works well for most cases without eid
           gameId = 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
         }
       }
@@ -181,27 +174,21 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
     const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
     if (!dateCellText) {
-      console.warn(`[scrapeDivision] Game ${gameId}: no date found in row`);
       return;
     }
-    // Combine date and time from the same cell (e.g. "2026/03/07 17:00")
     const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
     const scheduledAt = parseTaiwanDateTime(dateTimeStr);
     if (scheduledAt === null) {
-      console.warn(`[scrapeDivision] Game ${gameId}: could not parse date "${dateTimeStr}"`);
       return;
     }
     const scheduledAtLocal = toLocalFormat(scheduledAt);
 
-    // Venue: first cell text matching venue keywords; exclude the event-type tag (#...)
     const venue =
       cellTexts
         .flatMap((t) => t.split(/\s+/))
         .find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t) && !t.startsWith('#'))
         ?.trim() || null;
 
-    // Scores: TGB puts home score and away score in separate <p> elements in one <td>
-    // The score cell contains two numeric paragraphs (no separator between them)
     let homeScore = null;
     let awayScore = null;
     let status = 'scheduled';
@@ -215,6 +202,11 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
         status = 'completed';
       }
     });
+
+    const homeName = $(teamLinks[0]).text().trim() || 'Home';
+    const awayName = $(teamLinks[1]).text().trim() || 'Away';
+
+    console.log(`  - Game: [${gameId}] ${dateTimeStr} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
 
     games.push({
       game_id: gameId,

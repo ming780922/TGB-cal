@@ -8,8 +8,6 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    outputs:
-      new_teams: ${{ steps.scrape.outputs.new_teams }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,20 +21,3 @@ jobs:
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
           WORKER_BASE_URL: ${{ secrets.WORKER_BASE_URL }}
         run: node packages/scraper/full-scrape.js
-
-  trigger-deploy:
-    needs: scrape
-    if: needs.scrape.outputs.new_teams != '0'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger deploy workflow
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'deploy.yml',
-              ref: 'main'
-            })

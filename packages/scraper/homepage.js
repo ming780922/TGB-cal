@@ -4,6 +4,7 @@ const TGB_BASE_URL = 'https://tgbleague.com';
 const REQUEST_DELAY_MS = 1000;
 
 export async function scrapeHomepage() {
+  console.log(`[scrape] GET ${TGB_BASE_URL}`);
   const response = await fetch(TGB_BASE_URL, {
     headers: {
       'User-Agent': 'TGBCalendarBot/1.0 (+https://tgb.ming060.com)',
