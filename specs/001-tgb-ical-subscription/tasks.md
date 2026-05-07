@@ -112,12 +112,12 @@ Monorepo root: `/` (repo root)
 ### Implementation for User Story 3
 
 - [ ] T032 [P] [US3] Extend `apps/web/app/[locale]/team/[tid]/page.tsx` data fetching: query active divisions for team (JOIN team_divisions, divisions, leagues WHERE last_game_at > now()); query game schedule (next 5 upcoming + recent 5 completed); query scheduled game count per division
-- [ ] T033 [US3] Render active season list on team page `apps/web/app/[locale]/team/[tid]/page.tsx`: for each active division show league name, division label (e.g., "2025春季甲組"), wins/losses/draws, rank if available, scheduled game count, next game date + opponent name + venue
+- [ ] T033 [US3] Render active season list on team page `apps/web/app/[locale]/team/[tid]/page.tsx`: for each active division show league name, division label (e.g., "2025春季甲組"), wins/losses, rank if available, scheduled game count, next game date + opponent name + venue
 - [ ] T034 [US3] Render past season fallback in `apps/web/app/[locale]/team/[tid]/page.tsx`: if no active divisions, query most recent past division (last_game_at <= now()) and render with gray "已結束" / "Ended" badge
 - [ ] T035 [P] [US3] Render completed games section on team page: list games with `status = 'completed'`, show formatted date, opponent, final score (`home_score - away_score`)
 - [ ] T036 [US3] Add `generateMetadata` to `apps/web/app/[locale]/team/[tid]/page.tsx`: `title`: "{team.name} 賽程 | TGB iCal 訂閱"; `description`: includes team name, current season label, league name; `alternates.languages` for hreflang (`zh` → `/zh/team/{tid}`, `en` → `/en/team/{tid}`)
 - [ ] T037 [US3] Implement `apps/web/app/sitemap.ts`: query all `tid` values from D1 teams table; return array of both `/zh/team/{tid}` and `/en/team/{tid}` URLs with `lastModified` from `team.updated_at`
-- [ ] T038 [US3] Add team page display strings to `apps/web/i18n/messages/zh.json` and `en.json`: standings labels (勝/負/平/排名), schedule section headings, "已結束" badge, date/score formatting labels, game count label, next game label
+- [ ] T038 [US3] Add team page display strings to `apps/web/i18n/messages/zh.json` and `en.json`: standings labels (勝/負/排名), schedule section headings, "已結束" badge, date/score formatting labels, game count label, next game label
 
 **Checkpoint**: All three user stories work independently — full team page with schedule, standings, and subscribe buttons.
 

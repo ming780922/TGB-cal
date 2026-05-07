@@ -30,7 +30,6 @@ interface TeamDivisionInput {
   level_id: number;
   wins: number;
   losses: number;
-  draws: number;
   rank?: number;
 }
 
@@ -217,14 +216,14 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
       if (!existing) {
         await env.DB.prepare(
-          `INSERT INTO team_divisions (tid, level_id, wins, losses, draws, rank, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(td.tid, td.level_id, td.wins, td.losses, td.draws, td.rank ?? null, now, now).run();
+          `INSERT INTO team_divisions (tid, level_id, wins, losses, rank, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).bind(td.tid, td.level_id, td.wins, td.losses, td.rank ?? null, now, now).run();
       } else {
         await env.DB.prepare(
-          `UPDATE team_divisions SET wins = ?, losses = ?, draws = ?, rank = ?, updated_at = ?
+          `UPDATE team_divisions SET wins = ?, losses = ?, rank = ?, updated_at = ?
            WHERE tid = ? AND level_id = ?`
-        ).bind(td.wins, td.losses, td.draws, td.rank ?? null, now, td.tid, td.level_id).run();
+        ).bind(td.wins, td.losses, td.rank ?? null, now, td.tid, td.level_id).run();
       }
     }
 

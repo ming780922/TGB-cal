@@ -1,4 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+allowBuilds:
+  esbuild: true
+  sharp: false
+  workerd: false
 approveBuilds: esbuild,sharp,workerd

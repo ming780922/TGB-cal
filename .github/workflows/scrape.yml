@@ -22,7 +22,7 @@ jobs:
         env:
           SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }}
           WORKER_BASE_URL: ${{ secrets.WORKER_BASE_URL }}
-        run: node packages/scraper/index.js
+        run: node packages/scraper/full-scrape.js
 
   trigger-deploy:
     needs: scrape

@@ -86,7 +86,6 @@ Join table: which teams participate in which divisions, with standings.
 | level_id | INTEGER | PK, FK → divisions | Division |
 | wins | INTEGER | NOT NULL, DEFAULT 0 | Win count |
 | losses | INTEGER | NOT NULL, DEFAULT 0 | Loss count |
-| draws | INTEGER | NOT NULL, DEFAULT 0 | Draw count |
 | rank | INTEGER | nullable | Current rank in division |
 | created_at | INTEGER | NOT NULL | Unix timestamp |
 | updated_at | INTEGER | NOT NULL | Unix timestamp |

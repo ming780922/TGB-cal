@@ -43,10 +43,27 @@ export async function scrapeHomepage() {
       if (!isNaN(gid) && !isNaN(levelId)) {
         const key = `${gid}-${levelId}`;
         if (!divisions.has(key)) {
+          const leagueName = gidNames.get(String(gid)) ?? null;
+          const rawDivisionName = $(el).text().trim() || 'Division';
+          
+          // Merge logic: If division name is just a suffix (like "C1"), prepend league name
+          let mergedName = rawDivisionName;
+          if (leagueName && !rawDivisionName.includes(leagueName.substring(0, 4))) {
+            const cleanLeague = leagueName.replace(/\s+/g, '');
+            const cleanDiv = rawDivisionName.replace(/\s+/g, '');
+            let i = 0;
+            while (i < cleanDiv.length && cleanLeague.includes(cleanDiv[i])) {
+              i++;
+            }
+            const suffix = cleanDiv.substring(i);
+            mergedName = leagueName + (suffix ? suffix : '');
+          }
+
           divisions.set(key, {
             gid,
             level_id: levelId,
-            league_name: gidNames.get(String(gid)) ?? null,
+            league_name: leagueName,
+            division_name: mergedName,
           });
         }
       }

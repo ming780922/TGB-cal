@@ -29,10 +29,10 @@ async function main() {
 
   // Step 2: Scrape each division and upsert
   for (let i = 0; i < divisions.length; i++) {
-    const { gid, level_id, league_name } = divisions[i];
+    const { gid, level_id, league_name, division_name } = divisions[i];
     try {
-      console.log(`[scraper] Scraping division gid=${gid} level_id=${level_id}...`);
-      const data = await scrapeDivision(gid, level_id, league_name);
+      console.log(`[scraper] Scraping division gid=${gid} level_id=${level_id} (${division_name})...`);
+      const data = await scrapeDivision(gid, level_id, league_name, division_name);
 
       console.log(`[scraper] Upserting: ${data.teams.length} teams, ${data.games.length} games`);
       const result = await upsertDivisionData(data);

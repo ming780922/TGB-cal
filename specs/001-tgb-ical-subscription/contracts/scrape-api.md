@@ -52,11 +52,10 @@ Returns `401 Unauthorized` if token is missing or incorrect.
     {
       "tid": 42,
       "level_id": 345,
-      "wins": 3,
-      "losses": 1,
-      "draws": 0,
-      "rank": 2
-    }
+      "wins": 10,
+      "losses": 2,
+      "rank": 1
+      }
   ],
   "games": [
     {

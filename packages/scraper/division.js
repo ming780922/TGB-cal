@@ -49,9 +49,11 @@ function toLocalFormat(scheduledAt) {
  *
  * @param {number} gid - League group ID
  * @param {number} levelId - Division level ID
+ * @param {string} overrideLeagueName - Optional league name override
+ * @param {string} overrideDivisionName - Optional division name override
  * @returns {Promise<object>} Structured division data
  */
-export async function scrapeDivision(gid, levelId, leagueName) {
+export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideDivisionName) {
   const url = `${TGB_BASE_URL}/division.php?gid=${gid}&level_id=${levelId}`;
   const response = await fetch(url, {
     headers: { 'User-Agent': 'TGBCalendarBot/1.0 (+https://tgb.ming060.com)' },
@@ -71,7 +73,7 @@ export async function scrapeDivision(gid, levelId, leagueName) {
     $('h2').first().text().trim() ||
     $('h3').first().text().trim() ||
     '';
-  const fullTitle = pageTitle || `Division ${levelId}`;
+  const fullTitle = overrideDivisionName || pageTitle || `Division ${levelId}`;
 
   // TGB titles are often like "2025春季聯盟 甲組" or "2025/2026秋冬季 A組"
   const seasonMatch = fullTitle.match(
@@ -93,7 +95,6 @@ export async function scrapeDivision(gid, levelId, leagueName) {
     const tidLinks = $(row).find('a[href*="team.php?tid="], a[href*="tid="]');
     if (!tidLinks.length) return;
 
-    // Use the first tid link as the team for this row
     const firstLink = tidLinks.first();
     const tidMatch = firstLink.attr('href')?.match(/tid=(\d+)/);
     if (!tidMatch) return;
@@ -106,23 +107,23 @@ export async function scrapeDivision(gid, levelId, leagueName) {
       seenTids.add(tid);
       teams.push({ tid, name, name_normalized: normalizeTeamName(name) });
 
-      // Parse rank / wins / losses from cell text values
-      // Typical columns: 名次, 隊名, 勝, 負, 和, 積分 (rank, team, W, L, D, pts)
       const cellTexts = cells.toArray().map((c) => $(c).text().trim());
-      const numericCells = cellTexts.filter((t) => /^\d+$/.test(t));
-
+      
+      // Fixed TGB Standings Table Structure:
+      // Index 0: Rank (排名)
+      // Index 1: Team Name (隊伍)
+      // Index 2: Wins (勝場)
+      // Index 3: Losses (敗場)
+      
       const rank = parseInt(cellTexts[0]) || null;
-      // wins/losses are the first two numeric columns after rank
-      const wins = numericCells.length > 0 ? parseInt(numericCells[0]) : 0;
-      const losses = numericCells.length > 1 ? parseInt(numericCells[1]) : 0;
-      const draws = numericCells.length > 2 ? parseInt(numericCells[2]) : 0;
+      const wins = parseInt(cellTexts[2]) || 0;
+      const losses = parseInt(cellTexts[3]) || 0;
 
       teamDivisions.push({
         tid,
         level_id: parseInt(levelId),
-        wins: isNaN(wins) ? 0 : wins,
-        losses: isNaN(losses) ? 0 : losses,
-        draws: isNaN(draws) ? 0 : draws,
+        wins,
+        losses,
         rank: isNaN(rank) ? null : rank,
       });
     }
@@ -137,22 +138,46 @@ export async function scrapeDivision(gid, levelId, leagueName) {
     const cells = $(row).find('td');
     if (cells.length < 3) return;
 
-    // A schedule row must contain an event link (eid=)
+    // A schedule row usually contains an event link (eid=)
     const gameLink = $(row).find('a[href*="eid="]').first();
-    if (!gameLink.length) return;
+    let gameId;
 
-    const gameIdMatch = gameLink.attr('href')?.match(/eid=(\d+)/);
-    if (!gameIdMatch) return;
-    const gameId = parseInt(gameIdMatch[1]);
-    if (seenGameIds.has(gameId)) return;
-    seenGameIds.add(gameId);
+    if (gameLink.length) {
+      const gameIdMatch = gameLink.attr('href')?.match(/eid=(\d+)/);
+      if (gameIdMatch) {
+        gameId = parseInt(gameIdMatch[1]);
+      }
+    }
 
     // Find home/away team links (team.php?tid=N)
     const teamLinks = $(row).find('a[href*="tid="]');
+    if (teamLinks.length < 2 && !gameId) return; // Need at least two teams or a game ID
+
     const homeTid = parseInt($(teamLinks[0]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
     const awayTid = parseInt($(teamLinks[1]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
 
-    // Date cell: contains "YYYY/MM/DD" pattern; date and time may be in same cell separated by whitespace
+    // If no gameId from link, generate a stable synthetic one
+    // We use a large offset (1,000,000,000) to avoid collisions with real TGB IDs
+    if (!gameId && homeTid && awayTid) {
+      // Find date for the hash
+      const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
+      const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
+      if (dateCellText) {
+        const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
+        const scheduledAt = parseTaiwanDateTime(dateTimeStr);
+        if (scheduledAt) {
+          // Stable synthetic ID: 1B + (timestamp % 100M) + (sum of tids % 100)
+          // This isn't perfect but works well for most cases without eid
+          gameId = 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
+        }
+      }
+    }
+
+    if (!gameId) return;
+    if (seenGameIds.has(gameId)) return;
+    seenGameIds.add(gameId);
+
+    // Date cell: contains "YYYY/MM/DD" pattern
     const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
     const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
     if (!dateCellText) {
@@ -213,7 +238,7 @@ export async function scrapeDivision(gid, levelId, leagueName) {
   return {
     league: {
       gid: parseInt(gid),
-      name: leagueName ?? fullTitle,
+      name: overrideLeagueName ?? fullTitle,
     },
     division: {
       level_id: parseInt(levelId),

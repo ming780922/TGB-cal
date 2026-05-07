@@ -91,7 +91,6 @@ CREATE TABLE team_divisions (
   level_id   INTEGER NOT NULL,
   wins       INTEGER NOT NULL DEFAULT 0,
   losses     INTEGER NOT NULL DEFAULT 0,
-  draws      INTEGER NOT NULL DEFAULT 0,
   rank       INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
