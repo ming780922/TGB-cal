@@ -1,14 +1,10 @@
 -- Migration 001: Initial Schema
--- TGB Calendar D1 Database
+-- TGB Calendar D1 Database (Consolidated)
 
 -- 1. leagues
 CREATE TABLE IF NOT EXISTS leagues (
   gid          INTEGER PRIMARY KEY,
   name         TEXT NOT NULL,
-  venue_area   TEXT,
-  day_of_week  TEXT,
-  gender       TEXT,
-  league_type  TEXT NOT NULL CHECK(league_type IN ('regular', 'cup', 'special')),
   created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -67,7 +63,6 @@ CREATE TABLE IF NOT EXISTS team_divisions (
   level_id INTEGER NOT NULL REFERENCES divisions(level_id) ON DELETE CASCADE,
   wins     INTEGER NOT NULL DEFAULT 0,
   losses   INTEGER NOT NULL DEFAULT 0,
-  draws    INTEGER NOT NULL DEFAULT 0,
   rank     INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
