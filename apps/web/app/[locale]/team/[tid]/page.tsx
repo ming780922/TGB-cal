@@ -14,10 +14,7 @@ interface DivisionRow {
   rank: number | null;
   level_id: number;
   gid: number;
-  season_label: string;
-  division_label: string;
-  full_title: string | null;
-  last_game_at: number;
+  name: string | null;
   league_name: string;
   scheduled_count: number;
 }
@@ -25,7 +22,6 @@ interface DivisionRow {
 interface UpcomingGameRow {
   game_id: number;
   scheduled_at: number;
-  scheduled_at_local: string;
   venue: string;
   status: string;
   home_tid: number;
@@ -38,7 +34,6 @@ interface UpcomingGameRow {
 interface CompletedGameRow {
   game_id: number;
   scheduled_at: number;
-  scheduled_at_local: string;
   venue: string;
   status: string;
   home_tid: number;
@@ -64,7 +59,7 @@ export async function generateMetadata({ params }: Props) {
   const t = await getTranslations({ locale, namespace: 'meta' });
 
   let teamName = '';
-  let firstActiveDivision: DivisionRow | null = null;
+  let latestDivision: DivisionRow | null = null;
 
   try {
     const { env } = getRequestContext();
@@ -74,17 +69,17 @@ export async function generateMetadata({ params }: Props) {
     teamName = team?.name ?? '';
 
     if (teamName) {
-      const activeDivResult = await env.DB.prepare(`
+      const latestDivisionResult = await env.DB.prepare(`
         SELECT td.wins, td.losses, td.rank,
-               d.level_id, d.gid, d.season_label, d.division_label, d.full_title, d.last_game_at,
+               d.level_id, d.gid, d.name,
                l.name as league_name
         FROM team_divisions td
         JOIN divisions d ON d.level_id = td.level_id
         JOIN leagues l ON l.gid = d.gid
-        WHERE td.tid = ? AND d.last_game_at > unixepoch()
-        ORDER BY d.last_game_at DESC
+        WHERE td.tid = ?
+        ORDER BY d.level_id DESC
       `).bind(tid).first<DivisionRow>();
-      firstActiveDivision = activeDivResult ?? null;
+      latestDivision = latestDivisionResult ?? null;
     }
   } catch {
     return { title: t('siteTitle') };
@@ -96,8 +91,8 @@ export async function generateMetadata({ params }: Props) {
     title: t('teamPageTitle', { teamName }),
     description: t('teamPageDescription', {
       teamName,
-      season: firstActiveDivision?.season_label ?? '',
-      division: firstActiveDivision?.division_label ?? '',
+      season: latestDivision?.league_name ?? '',
+      division: latestDivision?.name ?? '',
     }),
     alternates: {
       languages: {
@@ -139,7 +134,7 @@ export default async function TeamPage({ params }: Props) {
     // All divisions for this team, sorted by last game date (most recent first)
     const divResult = await env.DB.prepare(`
       SELECT td.wins, td.losses, td.rank,
-             d.level_id, d.gid, d.season_label, d.division_label, d.full_title, d.last_game_at,
+             d.level_id, d.gid, d.name, d.last_game_at,
              l.name as league_name,
              (SELECT COUNT(*) FROM games g 
               WHERE g.level_id = d.level_id 
@@ -156,7 +151,7 @@ export default async function TeamPage({ params }: Props) {
 
     // Upcoming games (next 5 scheduled across all divisions for nextGame info)
     const upcomingResult = await env.DB.prepare(`
-      SELECT g.game_id, g.level_id, g.scheduled_at, g.scheduled_at_local, g.venue, g.status,
+      SELECT g.game_id, g.level_id, g.scheduled_at, g.venue, g.status,
              g.home_tid, g.away_tid,
              ht.name as home_name, at.name as away_name
       FROM games g
@@ -170,7 +165,7 @@ export default async function TeamPage({ params }: Props) {
 
     // Completed games (recent 5)
     const completedResult = await env.DB.prepare(`
-      SELECT g.game_id, g.scheduled_at, g.scheduled_at_local, g.venue, g.status,
+      SELECT g.game_id, g.scheduled_at, g.venue, g.status,
              g.home_tid, g.away_tid, g.home_score, g.away_score,
              ht.name as home_name, at.name as away_name
       FROM games g
@@ -212,7 +207,7 @@ export default async function TeamPage({ params }: Props) {
           {teamDivisions.map(div => {
             const nextGame = upcomingGames.find(g => g.level_id === div.level_id);
             const tgbUrl = `https://tgbleague.com/division.php?gid=${div.gid}&level_id=${div.level_id}`;
-            const displayTitle = (div.full_title && div.full_title !== 'TGB') ? div.full_title : div.league_name;
+            const displayTitle = div.name || div.league_name;
 
             return (
               <div key={div.level_id}>
