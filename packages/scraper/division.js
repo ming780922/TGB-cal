@@ -49,11 +49,11 @@ function toLocalFormat(scheduledAt) {
  *
  * @param {number} gid - League group ID
  * @param {number} levelId - Division level ID
- * @param {string} overrideLeagueName - Optional league name override
- * @param {string} overrideDivisionName - Optional division name override
+ * @param {string} leagueName - League name (season label)
+ * @param {string} divisionName - Full division display name
  * @returns {Promise<object>} Structured division data
  */
-export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideDivisionName) {
+export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
   const url = `${TGB_BASE_URL}/division.php?gid=${gid}&level_id=${levelId}`;
   console.log(`[scrape] GET ${url}`);
   const response = await fetch(url, {
@@ -67,22 +67,12 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
   const html = await response.text();
   const $ = cheerio.load(html);
 
-  // --- Parse page title / league & division metadata ---
-  const pageTitle =
-    $('title').text().trim() ||
-    $('h1').first().text().trim() ||
-    $('h2').first().text().trim() ||
-    $('h3').first().text().trim() ||
-    '';
-  const fullTitle = overrideDivisionName || pageTitle || `Division ${levelId}`;
-  console.log(`[scrape] Processing division: ${fullTitle}`);
+  // --- Metadata ---
+  const seasonLabel = leagueName;
+  const divisionLabel = divisionName.replace(leagueName, '').trim();
 
-  // TGB titles are often like "2025春季聯盟 甲組" or "2025/2026秋冬季 A組"
-  const seasonMatch = fullTitle.match(
-    /(\d{4}(?:[\/\-]\d{2,4})?[年]?(?:春|夏|秋|冬)?[季]?(?:上半年|下半年)?(?:第[一二三四]季)?)/
-  );
-  const seasonLabel = seasonMatch ? seasonMatch[1] : String(new Date().getFullYear());
-  const divisionLabel = fullTitle.replace(seasonLabel, '').trim() || '';
+  console.log(`[scrape] Processing division: ${divisionName}`);
+  console.log(`[debug] URL: ${url} | Standings Rows Selector: 'table tr'`);
 
   // --- Parse teams and standings ---
   const teams = [];
@@ -92,6 +82,9 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
   $('table tr').each((_, row) => {
     const cells = $(row).find('td');
     if (cells.length < 2) return;
+
+    // Extract cell texts once per row
+    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
 
     // A standings row must contain at least one team link (team.php?tid=N)
     const tidLinks = $(row).find('a[href*="team.php?tid="], a[href*="tid="]');
@@ -109,8 +102,6 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
       seenTids.add(tid);
       teams.push({ tid, name, name_normalized: normalizeTeamName(name) });
 
-      const cellTexts = cells.toArray().map((c) => $(c).text().trim());
-      
       const rank = parseInt(cellTexts[0]) || null;
       const wins = parseInt(cellTexts[2]) || 0;
       const losses = parseInt(cellTexts[3]) || 0;
@@ -127,6 +118,8 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     }
   });
 
+  console.log(`[debug] URL: ${url} | Schedule Rows Selector: 'table tr' | Team Link Selector: 'a[href*="tid="]' | Score Selector: 'td p'`);
+
   // --- Parse games / schedule ---
   const games = [];
   const seenGameIds = new Set();
@@ -134,6 +127,9 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
   $('table tr').each((_, row) => {
     const cells = $(row).find('td');
     if (cells.length < 3) return;
+
+    // Extract cell texts once per row
+    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
 
     // A schedule row usually contains an event link (eid=)
     const gameLink = $(row).find('a[href*="eid="]').first();
@@ -153,41 +149,27 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     const homeTid = parseInt($(teamLinks[0]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
     const awayTid = parseInt($(teamLinks[1]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
 
+    // Date cell: contains "YYYY/MM/DD" pattern
+    const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
+    if (!dateCellText) return;
+
+    const scheduledAt = parseTaiwanDateTime(dateCellText);
+    if (scheduledAt === null) return;
+
     // If no gameId from link, generate a stable synthetic one
     if (!gameId && homeTid && awayTid) {
-      const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
-      const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
-      if (dateCellText) {
-        const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
-        const scheduledAt = parseTaiwanDateTime(dateTimeStr);
-        if (scheduledAt) {
-          gameId = 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
-        }
-      }
+      gameId = 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
     }
 
-    if (!gameId) return;
-    if (seenGameIds.has(gameId)) return;
+    if (!gameId || seenGameIds.has(gameId)) return;
     seenGameIds.add(gameId);
 
-    // Date cell: contains "YYYY/MM/DD" pattern
-    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
-    const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
-    if (!dateCellText) {
-      return;
-    }
-    const dateTimeStr = dateCellText.replace(/\s+/g, ' ').trim();
-    const scheduledAt = parseTaiwanDateTime(dateTimeStr);
-    if (scheduledAt === null) {
-      return;
-    }
     const scheduledAtLocal = toLocalFormat(scheduledAt);
 
     const venue =
       cellTexts
         .flatMap((t) => t.split(/\s+/))
-        .find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t) && !t.startsWith('#'))
-        ?.trim() || null;
+        .find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t) && !t.startsWith('#')) || null;
 
     let homeScore = null;
     let awayScore = null;
@@ -206,7 +188,7 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
     const homeName = $(teamLinks[0]).text().trim() || 'Home';
     const awayName = $(teamLinks[1]).text().trim() || 'Away';
 
-    console.log(`  - Game: [${gameId}] ${dateTimeStr} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
+    console.log(`  - Game: [${gameId}] ${dateCellText} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
 
     games.push({
       game_id: gameId,
@@ -230,14 +212,14 @@ export async function scrapeDivision(gid, levelId, overrideLeagueName, overrideD
   return {
     league: {
       gid: parseInt(gid),
-      name: overrideLeagueName ?? fullTitle,
+      name: leagueName,
     },
     division: {
       level_id: parseInt(levelId),
       gid: parseInt(gid),
       season_label: seasonLabel,
       division_label: divisionLabel,
-      full_title: fullTitle,
+      full_title: divisionName,
       first_game_at: firstGameAt,
       last_game_at: lastGameAt,
       team_count: teams.length,

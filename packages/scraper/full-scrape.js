@@ -23,6 +23,8 @@ async function main() {
     const $ = cheerio.load(html);
     const tasks = [];
 
+    console.log(`[debug] URL: ${TGB_BASE_URL} | Category Selector: 'li'`);
+
     // 1. Find all league categories in the navigation menu
     $('li').each((_, li) => {
       const categoryLink = $(li).children('a[href="#"]');
@@ -30,6 +32,7 @@ async function main() {
       
       if (!categoryName) return;
 
+      console.log(`[debug] Category found: ${categoryName} | Division Links Selector: 'ul li a[href*="division.php"]'`);
       const subLinks = $(li).find('ul li a[href*="division.php"]');
       if (subLinks.length > 0) {
         console.log(`[scraper] Found category: ${categoryName} (${subLinks.length} divisions)`);
