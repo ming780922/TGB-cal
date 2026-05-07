@@ -11,18 +11,12 @@ interface LeagueInput {
 interface DivisionInput {
   level_id: number;
   gid: number;
-  season_label: string;
-  division_label?: string;
-  full_title: string;
-  first_game_at?: number;
-  last_game_at?: number;
-  team_count: number;
+  name: string;
 }
 
 interface TeamInput {
   tid: number;
   name: string;
-  name_normalized: string;
 }
 
 interface TeamDivisionInput {
@@ -39,7 +33,6 @@ interface GameInput {
   home_tid?: number;
   away_tid?: number;
   scheduled_at: number;
-  scheduled_at_local: string;
   venue?: string;
   home_score?: number;
   away_score?: number;
@@ -82,9 +75,7 @@ function validate(body: unknown): ScrapeUpsertBody | string {
   const division = b.division as Record<string, unknown>;
   if (typeof division.level_id !== 'number') return 'Missing required field: division.level_id';
   if (typeof division.gid !== 'number') return 'Missing required field: division.gid';
-  if (typeof division.season_label !== 'string') return 'Missing required field: division.season_label';
-  if (typeof division.full_title !== 'string') return 'Missing required field: division.full_title';
-  if (typeof division.team_count !== 'number') return 'Missing required field: division.team_count';
+  if (typeof division.name !== 'string') return 'Missing required field: division.name';
 
   if (!Array.isArray(b.teams)) return 'Missing required field: teams (must be array)';
   if (!Array.isArray(b.team_divisions)) return 'Missing required field: team_divisions (must be array)';
@@ -153,33 +144,23 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
       if (!existing) {
         await env.DB.prepare(
-          `INSERT INTO divisions (level_id, gid, season_label, division_label, full_title, first_game_at, last_game_at, team_count, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO divisions (level_id, gid, name, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?)`
         ).bind(
           body.division.level_id,
           body.division.gid,
-          body.division.season_label,
-          body.division.division_label ?? null,
-          body.division.full_title,
-          body.division.first_game_at ?? null,
-          body.division.last_game_at ?? null,
-          body.division.team_count,
+          body.division.name,
           now,
           now
         ).run();
         counts.inserted.divisions++;
       } else {
         await env.DB.prepare(
-          `UPDATE divisions SET gid = ?, season_label = ?, division_label = ?, full_title = ?, first_game_at = ?, last_game_at = ?, team_count = ?, updated_at = ?
+          `UPDATE divisions SET gid = ?, name = ?, updated_at = ?
            WHERE level_id = ?`
         ).bind(
           body.division.gid,
-          body.division.season_label,
-          body.division.division_label ?? null,
-          body.division.full_title,
-          body.division.first_game_at ?? null,
-          body.division.last_game_at ?? null,
-          body.division.team_count,
+          body.division.name,
           now,
           body.division.level_id
         ).run();
@@ -195,15 +176,15 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
       if (!existing) {
         await env.DB.prepare(
-          `INSERT INTO teams (tid, name, name_normalized, active_division_count, created_at, updated_at)
-           VALUES (?, ?, ?, 0, ?, ?)`
-        ).bind(team.tid, team.name, team.name_normalized, now, now).run();
+          `INSERT INTO teams (tid, name, created_at, updated_at)
+           VALUES (?, ?, ?, ?)`
+        ).bind(team.tid, team.name, now, now).run();
         counts.inserted.teams++;
         newTeams++;
       } else {
         await env.DB.prepare(
-          `UPDATE teams SET name = ?, name_normalized = ?, updated_at = ? WHERE tid = ?`
-        ).bind(team.name, team.name_normalized, now, team.tid).run();
+          `UPDATE teams SET name = ?, updated_at = ? WHERE tid = ?`
+        ).bind(team.name, now, team.tid).run();
         counts.updated.teams++;
       }
     }
@@ -238,15 +219,14 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
         // New game — INSERT
         const icalUid = `game-${game.game_id}@tgb.ming060.com`;
         await env.DB.prepare(
-          `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, scheduled_at_local, venue, home_score, away_score, status, ical_uid, ical_sequence, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, ical_uid, ical_sequence, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
         ).bind(
           game.game_id,
           game.level_id,
           game.home_tid ?? null,
           game.away_tid ?? null,
           game.scheduled_at,
-          game.scheduled_at_local,
           game.venue ?? null,
           game.home_score ?? null,
           game.away_score ?? null,
@@ -271,14 +251,13 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
         if (changed) {
           await env.DB.prepare(
-            `UPDATE games SET level_id = ?, home_tid = ?, away_tid = ?, scheduled_at = ?, scheduled_at_local = ?, venue = ?, status = ?, ical_sequence = ?, updated_at = ?
+            `UPDATE games SET level_id = ?, home_tid = ?, away_tid = ?, scheduled_at = ?, venue = ?, status = ?, ical_sequence = ?, updated_at = ?
              WHERE game_id = ?`
           ).bind(
             game.level_id,
             game.home_tid ?? null,
             game.away_tid ?? null,
             game.scheduled_at,
-            game.scheduled_at_local,
             game.venue ?? null,
             game.status,
             existing.ical_sequence + 1,
@@ -336,12 +315,7 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
       }
     }
 
-    // ── 7. Update divisions.last_scraped_at ───────────────────────────────────
-    await env.DB.prepare(
-      `UPDATE divisions SET last_scraped_at = ? WHERE level_id = ?`
-    ).bind(now, body.division.level_id).run();
-
-    // ── 8. Insert scrape_runs record ──────────────────────────────────────────
+    // ── 7. Insert scrape_runs record ──────────────────────────────────────────
     const finishedAt = Math.floor(Date.now() / 1000);
     await env.DB.prepare(
       `INSERT INTO scrape_runs (target_type, target_key, started_at, finished_at, status, rows_inserted, rows_updated)

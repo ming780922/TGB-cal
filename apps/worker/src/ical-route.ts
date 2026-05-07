@@ -71,13 +71,13 @@ export async function handleIcalRequest(
   const { results: games } = await env.DB.prepare(
     `SELECT g.game_id, g.level_id, g.home_tid, g.away_tid,
        ht.name as home_name, at.name as away_name,
-       g.scheduled_at, g.scheduled_at_local, g.venue,
+       g.scheduled_at, g.venue,
        g.home_score, g.away_score, g.status, g.ical_sequence,
-       d.gid, d.season_label, d.division_label
-     FROM games g
+       d.gid, l.name as league_name, d.name     FROM games g
      LEFT JOIN teams ht ON g.home_tid = ht.tid
      LEFT JOIN teams at ON g.away_tid = at.tid
      JOIN divisions d ON g.level_id = d.level_id
+     JOIN leagues l ON d.gid = l.gid
      JOIN team_divisions td ON td.tid = ? AND td.level_id = g.level_id
      ORDER BY g.scheduled_at ASC`,
   )

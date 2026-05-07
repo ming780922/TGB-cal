@@ -8,15 +8,14 @@ export interface GameRow {
   home_name: string | null;
   away_name: string | null;
   scheduled_at: number;
-  scheduled_at_local: string; // YYYYMMDDTHHmmSS
   venue: string | null;
   home_score: number | null;
   away_score: number | null;
   status: string;
   ical_sequence: number;
   gid: number;
-  season_label: string;
-  division_label: string | null;
+  league_name: string;
+  name: string;
 }
 
 export interface TeamInfo {
@@ -124,7 +123,7 @@ export function generateIcal(team: TeamInfo, games: GameRow[]): string {
       ? `${fullAddress} (${game.venue})`
       : (game.venue ?? '');
 
-    const divisionLine = [game.season_label, game.division_label].filter(Boolean).join(' ');
+    const divisionLine = [game.league_name, game.name].filter(Boolean).join(' ');
     const tgbUrl = `https://tgbleague.com/division.php?gid=${game.gid}&level_id=${game.level_id}`;
     const description = `${escapeText(divisionLine)}\\n${tgbUrl}`;
 
