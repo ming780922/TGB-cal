@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 
 const TGB_BASE_URL = 'https://tgbleague.com';
-const REQUEST_DELAY_MS = 1000;
+export const REQUEST_DELAY_MS = 2000;
 
 export async function scrapeHomepage() {
   console.log(`[scrape] GET ${TGB_BASE_URL}`);
@@ -18,60 +18,41 @@ export async function scrapeHomepage() {
   const html = await response.text();
   const $ = cheerio.load(html);
 
-  // Build a map of gid → league_name from the dropdown menu structure:
-  // <li><a href="#"><div>2025年第二季和平信義週六男子組</div></a>
-  //   <ul><li><a href="division.php?gid=180&level_id=...">...</a></li></ul>
-  // </li>
-  const gidNames = new Map();
-  $('a[href*="division.php"]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const m = href.match(/gid=(\d+)/);
-    if (!m || gidNames.has(m[1])) return;
-    const sectionLi = $(el).closest('ul').parent();
-    const name = sectionLi.children('a[href="#"]').children('div').text().trim()
-      || sectionLi.children('a').first().text().trim();
-    if (name) gidNames.set(m[1], name);
-  });
+  const divisions = [];
 
-  const divisions = new Map(); // key: `${gid}-${level_id}`
+  $('.menu-mobile > ul > li').each((_, leagueLi) => {
+    const leagueName = $(leagueLi).find('> a div').text().trim() || $(leagueLi).find('> a').text().trim();
+    if (!leagueName) return;
 
-  $('a[href*="division.php"]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const match = href.match(/[?&]gid=(\d+).*?[?&]level_id=(\d+)|[?&]level_id=(\d+).*?[?&]gid=(\d+)/);
-    if (match) {
-      const gid = parseInt(match[1] || match[4], 10);
-      const levelId = parseInt(match[2] || match[3], 10);
-      if (!isNaN(gid) && !isNaN(levelId)) {
-        const key = `${gid}-${levelId}`;
-        if (!divisions.has(key)) {
-          const leagueName = gidNames.get(String(gid)) ?? null;
-          const rawDivisionName = $(el).text().trim() || 'Division';
-          
-          // Merge logic: If division name is just a suffix (like "C1"), prepend league name
-          let mergedName = rawDivisionName;
-          if (leagueName && !rawDivisionName.includes(leagueName.substring(0, 4))) {
-            const cleanLeague = leagueName.replace(/\s+/g, '');
-            const cleanDiv = rawDivisionName.replace(/\s+/g, '');
-            let i = 0;
-            while (i < cleanDiv.length && cleanLeague.includes(cleanDiv[i])) {
-              i++;
-            }
-            const suffix = cleanDiv.substring(i);
-            mergedName = leagueName + (suffix ? suffix : '');
-          }
+    $(leagueLi).find('ul li a[href*="division.php"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const ids = parseIds(href);
+      const divisionName = $(el).find('div').text().trim() || $(el).text().trim();
 
-          divisions.set(key, {
-            gid,
-            level_id: levelId,
-            league_name: leagueName,
-            division_name: mergedName,
-          });
-        }
+      if (ids) {
+        divisions.push({
+          gid: ids.gid,
+          level_id: ids.levelId,
+          league_name: leagueName,
+          division_name: divisionName,
+        });
       }
-    }
+    });
   });
 
-  return Array.from(divisions.values());
+  return divisions;
 }
 
-export { REQUEST_DELAY_MS };
+/**
+ * Helper to parse gid/level_id from a URL or string
+ */
+function parseIds(href) {
+  if (!href) return null;
+  const match = href.match(/[?&]gid=(\d+).*?[?&]level_id=(\d+)|[?&]level_id=(\d+).*?[?&]gid=(\d+)/);
+  if (match) {
+    const gid = parseInt(match[1] || match[4], 10);
+    const levelId = parseInt(match[2] || match[3], 10);
+    return { gid, levelId };
+  }
+  return null;
+};

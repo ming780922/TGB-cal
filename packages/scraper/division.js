@@ -2,10 +2,6 @@ import * as cheerio from 'cheerio';
 
 const TGB_BASE_URL = 'https://tgbleague.com';
 
-function normalizeTeamName(name) {
-  return name.trim().toLowerCase().replace(/\s+/g, '');
-}
-
 /**
  * Parse a date string from the TGB website (Taiwan time, UTC+8) to a Unix timestamp.
  * Handles formats like "2025/03/15 19:00", "03/15 19:00", or with Chinese characters.
@@ -25,15 +21,6 @@ function parseTaiwanDateTime(dateStr) {
   const timePart = parts[3] || '00:00';
   const [h, min] = timePart.split(':').map(Number);
   return Math.floor(Date.UTC(y, m - 1, d, (h || 0) - 8, min || 0) / 1000);
-}
-
-/**
- * Convert a Unix timestamp to YYYYMMDDTHHmmSS in Asia/Taipei (UTC+8), no Z suffix.
- */
-function toLocalFormat(scheduledAt) {
-  const d = new Date((scheduledAt + 8 * 3600) * 1000);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00`;
 }
 
 /**
@@ -68,146 +55,96 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
   const $ = cheerio.load(html);
 
   // --- Metadata ---
-  const seasonLabel = leagueName;
-  const divisionLabel = divisionName.replace(leagueName, '').trim();
-
-  console.log(`[scrape] Processing division: ${divisionName}`);
-  console.log(`[debug] URL: ${url} | Standings Rows Selector: 'table tr'`);
+  console.log(`[scrape] Processing division: ${divisionName} (gid=${gid}, level_id=${levelId})`);
 
   // --- Parse teams and standings ---
   const teams = [];
   const teamDivisions = [];
-  const seenTids = new Set();
 
-  $('table tr').each((_, row) => {
+  $('#section-schedule table tbody tr').each((_, row) => {
     const cells = $(row).find('td');
-    if (cells.length < 2) return;
+    if (cells.length < 4) return;
 
-    // Extract cell texts once per row
-    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
-
-    // A standings row must contain at least one team link (team.php?tid=N)
-    const tidLinks = $(row).find('a[href*="team.php?tid="], a[href*="tid="]');
-    if (!tidLinks.length) return;
-
-    const firstLink = tidLinks.first();
-    const tidMatch = firstLink.attr('href')?.match(/tid=(\d+)/);
+    const rank = parseInt($(cells[0]).text().trim());
+    const teamLink = $(cells[1]).find('a[href*="tid="]');
+    const tidMatch = teamLink.attr('href')?.match(/tid=(\d+)/);
     if (!tidMatch) return;
 
     const tid = parseInt(tidMatch[1]);
-    const name = firstLink.text().trim();
-    if (!name || !tid) return;
+    const name = teamLink.text().trim();
+    const wins = parseInt($(cells[2]).text().trim()) || 0;
+    const losses = parseInt($(cells[3]).text().trim()) || 0;
 
-    if (!seenTids.has(tid)) {
-      seenTids.add(tid);
-      teams.push({ tid, name, name_normalized: normalizeTeamName(name) });
+    if (!tid || !name) return;
 
-      const rank = parseInt(cellTexts[0]) || null;
-      const wins = parseInt(cellTexts[2]) || 0;
-      const losses = parseInt(cellTexts[3]) || 0;
+    teams.push({ tid, name });
 
-      console.log(`  - Team: [${tid}] ${name} (Rank: ${rank}, W: ${wins}, L: ${losses})`);
+    console.log(`  - Team: [${tid}] ${name} (Rank: ${rank}, W: ${wins}, L: ${losses})`);
 
-      teamDivisions.push({
-        tid,
-        level_id: parseInt(levelId),
-        wins,
-        losses,
-        rank: isNaN(rank) ? null : rank,
-      });
-    }
+    teamDivisions.push({
+      tid,
+      level_id: parseInt(levelId),
+      wins,
+      losses,
+      rank: isNaN(rank) ? null : rank,
+    });
   });
-
-  console.log(`[debug] URL: ${url} | Schedule Rows Selector: 'table tr' | Team Link Selector: 'a[href*="tid="]' | Score Selector: 'td p'`);
 
   // --- Parse games / schedule ---
   const games = [];
-  const seenGameIds = new Set();
 
-  $('table tr').each((_, row) => {
+  $('#section-work table.divi-Sche-table tbody tr').each((_, row) => {
     const cells = $(row).find('td');
-    if (cells.length < 3) return;
+    if (cells.length < 6) return;
 
-    // Extract cell texts once per row
-    const cellTexts = cells.toArray().map((c) => $(c).text().replace(/\s+/g, ' ').trim());
+    // Time cell (0): Date and Time in <p> tags
+    const timeParas = $(cells[0]).find('p').toArray().map(p => $(p).text().trim());
+    const dateStr = timeParas.join(' ');
+    const scheduledAt = parseTaiwanDateTime(dateStr);
+    if (!scheduledAt) return;
 
-    // A schedule row usually contains an event link (eid=)
-    const gameLink = $(row).find('a[href*="eid="]').first();
-    let gameId;
+    // Info cell (1): Venue and optional Game Type
+    const infoParas = $(cells[1]).find('p').toArray().map(p => $(p).text().trim());
+    const venue = infoParas[0] || null;
 
-    if (gameLink.length) {
-      const gameIdMatch = gameLink.attr('href')?.match(/eid=(\d+)/);
-      if (gameIdMatch) {
-        gameId = parseInt(gameIdMatch[1]);
-      }
-    }
+    // Teams cell (3): Home and Away team links
+    const teamLinks = $(cells[3]).find('a[href*="tid="]');
+    if (teamLinks.length < 2) return;
 
-    // Find home/away team links (team.php?tid=N)
-    const teamLinks = $(row).find('a[href*="tid="]');
-    if (teamLinks.length < 2 && !gameId) return; // Need at least two teams or a game ID
+    const homeLink = $(teamLinks[0]);
+    const awayLink = $(teamLinks[1]);
+    const homeTid = parseInt(homeLink.attr('href')?.match(/tid=(\d+)/)?.[1] || '0');
+    const awayTid = parseInt(awayLink.attr('href')?.match(/tid=(\d+)/)?.[1] || '0');
+    const homeName = homeLink.text().trim();
+    const awayName = awayLink.text().trim();
 
-    const homeTid = parseInt($(teamLinks[0]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
-    const awayTid = parseInt($(teamLinks[1]).attr('href')?.match(/tid=(\d+)/)?.[1] || '0') || null;
+    // Score cell (4): Home and Away scores
+    const scoreParas = $(cells[4]).find('p').toArray().map(p => $(p).text().trim());
+    let homeScore = scoreParas[0] !== '-' ? parseInt(scoreParas[0]) : null;
+    let awayScore = scoreParas[1] !== '-' ? parseInt(scoreParas[1]) : null;
+    const status = (homeScore !== null && awayScore !== null) ? 'completed' : 'scheduled';
 
-    // Date cell: contains "YYYY/MM/DD" pattern
-    const dateCellText = cellTexts.find((t) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(t));
-    if (!dateCellText) return;
+    // Record cell (5): Game ID (eid)
+    const gameLink = $(cells[5]).find('a[href*="eid="]').first();
+    let gameId = gameLink.length
+      ? parseInt(gameLink.attr('href')?.match(/eid=(\d+)/)?.[1])
+      : 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
 
-    const scheduledAt = parseTaiwanDateTime(dateCellText);
-    if (scheduledAt === null) return;
+    if (!gameId) return;
 
-    // If no gameId from link, generate a stable synthetic one
-    if (!gameId && homeTid && awayTid) {
-      gameId = 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
-    }
-
-    if (!gameId || seenGameIds.has(gameId)) return;
-    seenGameIds.add(gameId);
-
-    const scheduledAtLocal = toLocalFormat(scheduledAt);
-
-    const venue =
-      cellTexts
-        .flatMap((t) => t.split(/\s+/))
-        .find((t) => t.length > 1 && /館|場|球場|體育|育館|运动|運動/.test(t) && !t.startsWith('#')) || null;
-
-    let homeScore = null;
-    let awayScore = null;
-    let status = 'scheduled';
-
-    cells.toArray().forEach((cell) => {
-      const paras = $(cell).find('p').toArray().map((p) => $(p).text().trim());
-      const nums = paras.filter((t) => /^\d+$/.test(t)).map(Number);
-      if (nums.length >= 2) {
-        homeScore = nums[0];
-        awayScore = nums[1];
-        status = 'completed';
-      }
-    });
-
-    const homeName = $(teamLinks[0]).text().trim() || 'Home';
-    const awayName = $(teamLinks[1]).text().trim() || 'Away';
-
-    console.log(`  - Game: [${gameId}] ${dateCellText} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
-
+    console.log(`  - Game: [${gameId}] ${dateStr} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
     games.push({
       game_id: gameId,
-      level_id: levelId,
+      level_id: parseInt(levelId),
       home_tid: homeTid,
       away_tid: awayTid,
       scheduled_at: scheduledAt,
-      scheduled_at_local: scheduledAtLocal,
       venue,
       home_score: homeScore,
       away_score: awayScore,
       status,
     });
   });
-
-  // --- Calculate first/last game timestamps ---
-  const gameTimes = games.map((g) => g.scheduled_at).filter(Boolean);
-  const firstGameAt = gameTimes.length ? Math.min(...gameTimes) : null;
-  const lastGameAt = gameTimes.length ? Math.max(...gameTimes) : null;
 
   return {
     league: {
@@ -217,12 +154,7 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
     division: {
       level_id: parseInt(levelId),
       gid: parseInt(gid),
-      season_label: seasonLabel,
-      division_label: divisionLabel,
-      full_title: divisionName,
-      first_game_at: firstGameAt,
-      last_game_at: lastGameAt,
-      team_count: teams.length,
+      name: divisionName,
     },
     teams,
     team_divisions: teamDivisions,
