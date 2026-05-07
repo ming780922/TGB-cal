@@ -54,8 +54,8 @@ BEGIN:VEVENT
 UID:game-{game_id}@tgb.ming060.com
 SEQUENCE:{ical_sequence}
 DTSTAMP:{now_utc_yyyymmddThhmmssZ}
-DTSTART;TZID=Asia/Taipei:{scheduled_at_local}
-DTEND;TZID=Asia/Taipei:{scheduled_at_local + 1hr}
+DTSTART;TZID=Asia/Taipei:{scheduled_at_formatted_Taipei}
+DTEND;TZID=Asia/Taipei:{scheduled_at_formatted_Taipei + 1hr}
 SUMMARY:{home_name} vs {away_name}                   ← if status != completed
 SUMMARY:{home_name} {home_score} - {away_score} {away_name}  ← if completed
 LOCATION:{full_address} ({venue_short})
@@ -123,8 +123,7 @@ Served by Next.js route (`apps/web/app/api/teams/search/route.ts`).
     {
       "tid": 42,
       "name": "火箭隊",
-      "active_division_count": 2,
-      "last_game_at": 1748000000
+      "last_game_at": 1748044800
     }
   ]
 }

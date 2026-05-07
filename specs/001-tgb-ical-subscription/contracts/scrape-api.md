@@ -26,7 +26,6 @@ Returns `401 Unauthorized` if token is missing or incorrect.
   "league": {
     "gid": 12,
     "name": "台北和平週六聯盟",
-    "venue_area": "台北",
     "day_of_week": "週六",
     "gender": "男生",
     "league_type": "regular"
@@ -36,17 +35,15 @@ Returns `401 Unauthorized` if token is missing or incorrect.
     "gid": 12,
     "season_label": "2025春季",
     "division_label": "甲組",
-    "full_title": "2025春季甲組",
+    "name": "2025春季甲組",
     "first_game_at": 1741478400,
-    "last_game_at": 1748044800,
-    "team_count": 8
+    "last_game_at": 1748044800
   },
   "teams": [
     {
       "tid": 42,
-      "name": "火箭隊",
-      "name_normalized": "火箭隊"
-    }
+      "name": "火箭隊"
+    },
   ],
   "team_divisions": [
     {
@@ -64,7 +61,6 @@ Returns `401 Unauthorized` if token is missing or incorrect.
       "home_tid": 42,
       "away_tid": 55,
       "scheduled_at": 1741564800,
-      "scheduled_at_local": "20250310T190000",
       "venue": "和平籃球館",
       "home_score": null,
       "away_score": null,
@@ -78,7 +74,6 @@ Returns `401 Unauthorized` if token is missing or incorrect.
 - `league` and `division` fields are required
 - `teams`, `team_divisions`, `games` may be empty arrays if nothing changed
 - `scheduled_at` is Unix timestamp (UTC)
-- `scheduled_at_local` is `YYYYMMDDTHHmmSS` (no timezone suffix; always Asia/Taipei)
 - `home_score` and `away_score` are null for future/scheduled games
 
 ### Response: 200 OK
@@ -128,5 +123,4 @@ Returns `401 Unauthorized` if token is missing or incorrect.
 
 After upserting games, the Worker MUST:
 1. For each team whose games changed: invalidate `team_feed_meta` (set `last_modified_at` = now, clear `cached_ical`, regenerate `etag`)
-2. Update `divisions.last_scraped_at` = now
-3. Insert a `scrape_runs` record with final status and row counts
+2. Insert a `scrape_runs` record with final status and row counts
