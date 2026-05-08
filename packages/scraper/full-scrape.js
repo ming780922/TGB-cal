@@ -1,7 +1,6 @@
 import { scrapeHomepage } from './homepage.js';
 import { scrapeDivision } from './division.js';
 import { upsertDivisionData } from './api-client.js';
-import { appendFileSync } from 'fs';
 
 const REQUEST_DELAY_MS = 1000;
 
@@ -23,10 +22,10 @@ async function processDivisionTask(task) {
   try {
     const data = await scrapeDivision(gid, level_id, league_name, division_name);
     console.log(`  - Found ${data.teams.length} teams, ${data.games.length} games. Upserting...`);
-    
+
     const result = await upsertDivisionData(data);
     const newTeams = result.new_teams || 0;
-    
+
     console.log(`  - Done: inserted=${JSON.stringify(result.inserted)}, updated=${JSON.stringify(result.updated)}, new_teams=${newTeams}`);
     return { newTeams, success: true };
   } catch (err) {
@@ -61,7 +60,7 @@ async function main() {
       console.log(`[scraper] Processing: ${league_name}, ${division_name} (gid=${gid}, level_id=${level_id})`);
 
       const result = await processDivisionTask(divisions[i]);
-      
+
       totalNewTeams += result.newTeams;
       if (result.success) {
         successCount++;

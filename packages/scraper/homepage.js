@@ -1,7 +1,6 @@
 import * as cheerio from 'cheerio';
 
 const TGB_BASE_URL = 'https://tgbleague.com';
-export const REQUEST_DELAY_MS = 2000;
 
 export async function scrapeHomepage() {
   console.log(`[scrape] GET ${TGB_BASE_URL}`);
