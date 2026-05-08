@@ -49,11 +49,6 @@ async function main() {
     console.log(`[scraper] Found ${divisions.length} divisions to scrape.`);
 
     for (let i = 0; i < divisions.length; i++) {
-      const { gid, level_id, league_name, division_name } = divisions[i];
-      console.log(`[scraper] Processing: ${league_name}, ${division_name} (gid=${gid}, level_id=${level_id})`);
-    }
-
-    for (let i = 0; i < divisions.length; i++) {
       console.log(`[scraper] [${i + 1}/${divisions.length}]`);
 
       const { gid, level_id, league_name, division_name } = divisions[i];
@@ -68,13 +63,11 @@ async function main() {
         errorCount++;
       }
 
-      // Rate limiting: sleep between requests, except after the last one
       if (i < divisions.length - 1) {
         await sleep(REQUEST_DELAY_MS);
       }
     }
 
-    // 3. Final Summary
     console.log('\n' + '='.repeat(50));
     console.log('[scraper] Crawl complete.');
     console.log(`- Total Divisions: ${divisions.length}`);

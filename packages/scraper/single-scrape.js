@@ -1,97 +1,88 @@
-import * as cheerio from 'cheerio';
 import { scrapeDivision } from './division.js';
 import { upsertDivisionData } from './api-client.js';
 
-const TGB_BASE_URL = 'https://tgbleague.com';
+const REQUEST_DELAY_MS = 1000;
 
-async function main() {
-  const tid = 316; // 師大公鹿
-  console.log(`[scraper] Finding all divisions for team tid=${tid}...`);
+/**
+ * Utility to wait between requests to avoid overwhelming the server.
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Handles the scrape-and-upsert lifecycle for a single division.
+ * @returns {Promise<{ newTeams: number, success: boolean }>}
+ */
+async function processDivisionTask(task) {
+  const { gid, level_id, league_name, division_name } = task;
+  console.log(`[scraper] Processing: ${division_name} (gid=${gid}, level_id=${level_id})`);
 
   try {
-    const response = await fetch(`${TGB_BASE_URL}/team.php?tid=${tid}`, {
-      headers: { 'User-Agent': 'TGBCalendarBot/1.0 (+https://tgb.ming060.com)' },
-    });
+    const data = await scrapeDivision(gid, level_id, league_name, division_name);
+    console.log(`  - Found ${data.teams.length} teams, ${data.games.length} games. Upserting...`);
+    
+    const result = await upsertDivisionData(data);
+    const newTeams = result.new_teams || 0;
+    
+    console.log(`  - Done: inserted=${JSON.stringify(result.inserted)}, updated=${JSON.stringify(result.updated)}, new_teams=${newTeams}`);
+    return { newTeams, success: true };
+  } catch (err) {
+    console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
+    return { newTeams: 0, success: false };
+  }
+}
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch team page: ${response.status} ${response.statusText}`);
-    }
+/**
+ * Main orchestration function.
+ */
+async function main() {
+  console.log('[scraper] Starting FULL TGB crawl...');
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+  let totalNewTeams = 0;
+  let successCount = 0;
+  let errorCount = 0;
 
-    const divisions = [];
-    const seen = new Set();
-
-    // Look for links to division.php in the team page (usually in a dropdown or history list)
-    $('a[href*="division.php"]').each((_, el) => {
-      const href = $(el).attr('href') || '';
-      const match = href.match(/[?&]gid=(\d+).*?[?&]level_id=(\d+)|[?&]level_id=(\d+).*?[?&]gid=(\d+)/);
-      if (match) {
-        const gid = parseInt(match[1] || match[4], 10);
-        const levelId = parseInt(match[2] || match[3], 10);
-        if (!isNaN(gid) && !isNaN(levelId)) {
-          const key = `${gid}-${levelId}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            
-            // leagueName: The general category (e.g., "2025年第二季和平信義週六男子組")
-            // leagueName: The general category (e.g., "2025年第二季和平信義週六男子組")
-            const leagueName = $(el).closest('ul').parent().children('a[href="#"]').text().trim() 
-              || $(el).closest('ul').prevAll('.team-title, h4, h3').first().text().trim()
-              || null;
-
-            // divisionName: The specific division (e.g., "和平信義 C7")
-            const rawDivisionName = $(el).text().trim() || 'Division';
-
-            // Merge logic for better descriptive titles
-            let mergedDivisionName = rawDivisionName;
-            // Only merge if we have a leagueName and the raw name doesn't look like a full title already
-            // (Full titles usually start with a 4-digit year)
-            const looksLikeFullTitle = /^\d{4}/.test(rawDivisionName);
-
-            if (leagueName && !looksLikeFullTitle && !rawDivisionName.includes(leagueName.substring(0, 4))) {
-              const cleanLeague = leagueName.replace(/\s+/g, '');
-              const cleanDiv = rawDivisionName.replace(/\s+/g, '');
-              let i = 0;
-              while (i < cleanDiv.length && cleanLeague.includes(cleanDiv[i])) {
-                i++;
-              }
-              const suffix = cleanDiv.substring(i);
-              mergedDivisionName = leagueName + (suffix ? suffix : '');
-            }
-
-            divisions.push({ gid, levelId, leagueName: leagueName || rawDivisionName, divisionName: mergedDivisionName });
-          }
-        }
+  try {
+    const divisions = [
+      {
+        gid: 211,
+        level_id: 1157,
+        league_name: '2026年第一季和平信義週六男子組',
+        division_name: '和平信義 C5',
       }
-    });
-
-    console.log(`[scraper] Found ${divisions.length} divisions to process`);
+    ];
+    console.log(`[scraper] Found ${divisions.length} divisions to scrape.`);
 
     for (let i = 0; i < divisions.length; i++) {
-      const { gid, levelId, leagueName, divisionName } = divisions[i];
-      console.log(`[scraper] [${i + 1}/${divisions.length}] Scraping gid=${gid} level_id=${levelId} (${divisionName})...`);
+      console.log(`[scraper] [${i + 1}/${divisions.length}]`);
+
+      const { gid, level_id, league_name, division_name } = divisions[i];
+      console.log(`[scraper] Processing: ${league_name}, ${division_name} (gid=${gid}, level_id=${level_id})`);
+
+      const result = await processDivisionTask(divisions[i]);
       
-      try {
-        const data = await scrapeDivision(gid, levelId, leagueName, divisionName);
-        console.log(`[scraper] Found ${data.teams.length} teams and ${data.games.length} games. Upserting...`);
-        
-        const result = await upsertDivisionData(data);
-        console.log(`[scraper] Success: inserted=${JSON.stringify(result.inserted)}, updated=${JSON.stringify(result.updated)}`);
-      } catch (err) {
-        console.error(`[scraper] Error scraping division ${gid}/${levelId}:`, err.message);
+      totalNewTeams += result.newTeams;
+      if (result.success) {
+        successCount++;
+      } else {
+        errorCount++;
       }
 
-      // Small delay between divisions to be polite
       if (i < divisions.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await sleep(REQUEST_DELAY_MS);
       }
     }
 
-    console.log('[scraper] Finished processing all divisions for team 316');
+    console.log('\n' + '='.repeat(50));
+    console.log('[scraper] Crawl complete.');
+    console.log(`- Total Divisions: ${divisions.length}`);
+    console.log(`- Successfully Processed: ${successCount}`);
+    console.log(`- Failed: ${errorCount}`);
+    console.log(`- Total New Teams: ${totalNewTeams}`);
+    console.log('='.repeat(50));
   } catch (err) {
-    console.error('[scraper] Fatal error:', err.message);
+    console.error('[scraper] Fatal error during crawl:', err);
     process.exit(1);
   }
 }
