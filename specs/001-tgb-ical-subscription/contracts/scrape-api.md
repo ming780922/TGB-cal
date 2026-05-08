@@ -24,31 +24,24 @@ Returns `401 Unauthorized` if token is missing or incorrect.
 ```json
 {
   "league": {
-    "gid": 12,
-    "name": "台北和平週六聯盟",
-    "day_of_week": "週六",
-    "gender": "男生",
-    "league_type": "regular"
+    "gid": 211,
+    "name": "2026年第一季和平信義週六男子組隊賽",
   },
   "division": {
-    "level_id": 345,
-    "gid": 12,
-    "season_label": "2025春季",
-    "division_label": "甲組",
-    "name": "2025春季甲組",
-    "first_game_at": 1741478400,
-    "last_game_at": 1748044800
+    "level_id": 1157,
+    "gid": 211,
+    "name": "和平信義 C5",
   },
   "teams": [
     {
-      "tid": 42,
-      "name": "火箭隊"
+      "tid": 316,
+      "name": "師大公鹿"
     },
   ],
   "team_divisions": [
     {
-      "tid": 42,
-      "level_id": 345,
+      "tid": 316,
+      "level_id": 211,
       "wins": 10,
       "losses": 2,
       "rank": 1
@@ -56,12 +49,12 @@ Returns `401 Unauthorized` if token is missing or incorrect.
   ],
   "games": [
     {
-      "game_id": 9001,
-      "level_id": 345,
-      "home_tid": 42,
-      "away_tid": 55,
+      "game_id": 18605,
+      "level_id": 211,
+      "home_tid": 316,
+      "away_tid": 871,
       "scheduled_at": 1741564800,
-      "venue": "和平籃球館",
+      "venue": "和平籃球暖身館A場",
       "home_score": null,
       "away_score": null,
       "status": "scheduled"
@@ -122,5 +115,4 @@ Returns `401 Unauthorized` if token is missing or incorrect.
 ## Side Effects
 
 After upserting games, the Worker MUST:
-1. For each team whose games changed: invalidate `team_feed_meta` (set `last_modified_at` = now, clear `cached_ical`, regenerate `etag`)
-2. Insert a `scrape_runs` record with final status and row counts
+1. For each team whose games changed: invalidate `team_sync` (set `last_modified_at` = now, clear `ical_cached`, clear `ical_etag`)

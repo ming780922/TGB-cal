@@ -12,7 +12,6 @@ Represents a recurring TGB league series identified by `gid`. Stable across seas
 |-------|------|-------------|-------------|
 | gid | INTEGER | PK | TGB league identifier (from URL) |
 | name | TEXT | NOT NULL | Full league name |
-| venue_area | TEXT | nullable | Geographic area (e.g., 台北) |
 | day_of_week | TEXT | nullable | Regular game day (e.g., 週六) |
 | gender | TEXT | nullable | 男生/女生/混合 |
 | league_type | TEXT | NOT NULL, CHECK | 'regular' \| 'cup' \| 'special' |
@@ -35,18 +34,11 @@ A specific group within a specific season of a league. Identified by `level_id`.
 | gid | INTEGER | FK → leagues | Parent league |
 | season_label | TEXT | NOT NULL | e.g., "2025春季" |
 | division_label | TEXT | nullable | e.g., "甲組" |
-| full_title | TEXT | NOT NULL | e.g., "2025春季甲組" |
+| name | TEXT | NOT NULL | e.g., "2025春季甲組" |
 | first_game_at | INTEGER | nullable | Unix timestamp of first game |
 | last_game_at | INTEGER | nullable | Unix timestamp of last game |
-| team_count | INTEGER | NOT NULL, DEFAULT 0 | Number of teams in this division |
-| last_scraped_at | INTEGER | nullable | Last successful scrape time |
 | created_at | INTEGER | NOT NULL | Unix timestamp |
 | updated_at | INTEGER | NOT NULL | Unix timestamp |
-
-**Scrape eligibility rules**:
-- Never scraped: `last_scraped_at IS NULL` → always scrape
-- Has future games: `last_game_at > now()` AND `now() - last_scraped_at > 21600` (6 hours) → scrape
-- Past division: skip
 
 ---
 
@@ -58,9 +50,7 @@ A team identified by `tid`. Stable across seasons and leagues.
 |-------|------|-------------|-------------|
 | tid | INTEGER | PK | TGB team identifier |
 | name | TEXT | NOT NULL | Display name (e.g., "火箭隊") |
-| name_normalized | TEXT | NOT NULL | Lowercase, no spaces (for search) |
 | last_game_at | INTEGER | nullable | Most recent game unix timestamp |
-| active_division_count | INTEGER | NOT NULL, DEFAULT 0 | Count of current-season divisions |
 | created_at | INTEGER | NOT NULL | Unix timestamp |
 | updated_at | INTEGER | NOT NULL | Unix timestamp |
 

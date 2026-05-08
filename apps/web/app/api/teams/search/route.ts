@@ -22,12 +22,12 @@ export async function GET(request: Request): Promise<Response> {
   console.log(`[api/teams/search] Total teams in DB: ${countResult?.count}`);
 
   try {
-    let rows: { tid: number; name: string; active_division_count: number; last_game_at: string | null }[];
+    let rows: { tid: number; name: string; last_game_at: string | null }[];
 
     if (q.length >= 2) {
       const result = await db
         .prepare(
-          `SELECT t.tid, t.name, t.active_division_count, t.last_game_at
+          `SELECT t.tid, t.name, t.last_game_at
            FROM teams t
            JOIN teams_fts f ON f.rowid = t.tid
            WHERE teams_fts MATCH ?
@@ -35,18 +35,18 @@ export async function GET(request: Request): Promise<Response> {
            LIMIT 20`
         )
         .bind(q + '*')
-        .all<{ tid: number; name: string; active_division_count: number; last_game_at: string | null }>();
+        .all<{ tid: number; name: string; last_game_at: string | null }>();
       rows = result.results;
     } else {
       const result = await db
         .prepare(
-          `SELECT tid, name, active_division_count, last_game_at
+          `SELECT tid, name, last_game_at
            FROM teams
            WHERE name LIKE ?
            LIMIT 20`
         )
         .bind('%' + q + '%')
-        .all<{ tid: number; name: string; active_division_count: number; last_game_at: string | null }>();
+        .all<{ tid: number; name: string; last_game_at: string | null }>();
       rows = result.results;
     }
 

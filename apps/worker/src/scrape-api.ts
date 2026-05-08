@@ -333,19 +333,6 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
       }
     }
 
-    // ── 7. Insert scrape_runs record ──────────────────────────────────────────
-    const finishedAt = Math.floor(Date.now() / 1000);
-    await env.DB.prepare(
-      `INSERT INTO scrape_runs (target_type, target_key, started_at, finished_at, status, rows_inserted, rows_updated)
-       VALUES ('division', ?, ?, ?, 'success', ?, ?)`
-    ).bind(
-      String(body.division.level_id),
-      startedAt,
-      finishedAt,
-      counts.inserted.leagues + counts.inserted.divisions + counts.inserted.teams + counts.inserted.games,
-      counts.updated.leagues + counts.updated.divisions + counts.updated.teams + counts.updated.games
-    ).run();
-
     return jsonResponse({
       ok: true,
       inserted: counts.inserted,
@@ -353,17 +340,6 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
       new_teams: newTeams,
     }, 200);
   } catch (err: unknown) {
-    // Try to log a failed scrape_runs entry (best-effort)
-    try {
-      const finishedAt = Math.floor(Date.now() / 1000);
-      await env.DB.prepare(
-        `INSERT INTO scrape_runs (target_type, target_key, started_at, finished_at, status, rows_inserted, rows_updated)
-         VALUES ('division', ?, ?, ?, 'failed', 0, 0)`
-      ).bind(String(body.division.level_id), startedAt, finishedAt).run();
-    } catch {
-      // ignore secondary error
-    }
-
     const detail = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: 'Database error', detail }, 500);
   }

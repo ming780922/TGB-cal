@@ -6,8 +6,6 @@ import { useTranslations } from 'next-intl';
 type TeamResult = {
   tid: number;
   name: string;
-  active_division_count: number;
-  last_game_at: string | null;
 };
 
 type Props = {

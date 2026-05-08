@@ -56,6 +56,11 @@ async function main() {
 
   // Output for GitHub Actions
   outputToGitHubActions('new_teams', String(totalNewTeams));
+
+  if (divisionsErrored > 0) {
+    console.error(`[scraper] Finished with ${divisionsErrored} errors.`);
+    process.exit(1);
+  }
 }
 
 main().catch(err => {

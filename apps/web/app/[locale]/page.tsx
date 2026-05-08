@@ -21,7 +21,7 @@ export default async function HomePage({ params: { locale } }: Props) {
   try {
     const { env } = getRequestContext();
     const result = await env.DB.prepare(
-      'SELECT tid, name FROM teams ORDER BY active_division_count DESC, last_game_at DESC LIMIT 8'
+      'SELECT tid, name FROM teams ORDER BY last_game_at DESC LIMIT 8'
     ).all<{ tid: number; name: string }>();
     hotTeams = result.results ?? [];
   } catch {

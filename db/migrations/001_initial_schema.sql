@@ -13,13 +13,7 @@ CREATE TABLE IF NOT EXISTS leagues (
 CREATE TABLE IF NOT EXISTS divisions (
   level_id        INTEGER PRIMARY KEY,
   gid             INTEGER NOT NULL REFERENCES leagues(gid),
-  season_label    TEXT,
-  division_label  TEXT,
-  full_title      TEXT,
-  first_game_at   INTEGER,
-  last_game_at    INTEGER,
-  team_count      INTEGER NOT NULL DEFAULT 0,
-  last_scraped_at INTEGER,
+  name            TEXT,
   created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at      INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -28,9 +22,6 @@ CREATE TABLE IF NOT EXISTS divisions (
 CREATE TABLE IF NOT EXISTS teams (
   tid                   INTEGER PRIMARY KEY,
   name                  TEXT NOT NULL,
-  name_normalized       TEXT,
-  last_game_at          INTEGER,
-  active_division_count INTEGER NOT NULL DEFAULT 0,
   created_at            INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at            INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -69,7 +60,7 @@ CREATE TABLE IF NOT EXISTS team_divisions (
   PRIMARY KEY (tid, level_id)
 );
 
--- 6. games
+-- 6. games (Domain facts only)
 CREATE TABLE IF NOT EXISTS games (
   game_id           INTEGER PRIMARY KEY,
   level_id          INTEGER NOT NULL REFERENCES divisions(level_id),
@@ -80,32 +71,25 @@ CREATE TABLE IF NOT EXISTS games (
   home_score        INTEGER,
   away_score        INTEGER,
   status            TEXT NOT NULL DEFAULT 'scheduled'
-                      CHECK(status IN ('scheduled', 'completed', 'postponed', 'cancelled')),
-  ical_uid          TEXT NOT NULL UNIQUE,
-  ical_sequence     INTEGER NOT NULL DEFAULT 0,
+                      CHECK(status IN ('scheduled', 'completed')),
   created_at        INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at        INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- 7. team_feed_meta
-CREATE TABLE IF NOT EXISTS team_feed_meta (
-  tid             INTEGER PRIMARY KEY REFERENCES teams(tid) ON DELETE CASCADE,
-  last_modified_at INTEGER NOT NULL,
-  game_count      INTEGER NOT NULL DEFAULT 0,
-  etag            TEXT NOT NULL,
-  cached_ical     TEXT,
-  generated_at    INTEGER
+-- 7. game_sync (iCal metadata)
+CREATE TABLE IF NOT EXISTS game_sync (
+  game_id        INTEGER PRIMARY KEY REFERENCES games(game_id) ON DELETE CASCADE,
+  ical_uid       TEXT NOT NULL UNIQUE,
+  ical_sequence  INTEGER NOT NULL DEFAULT 0,
+  updated_at     INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- 8. scrape_runs
-CREATE TABLE IF NOT EXISTS scrape_runs (
-  run_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_type   TEXT NOT NULL CHECK(target_type IN ('homepage', 'division', 'game')),
-  target_key    TEXT,
-  started_at    INTEGER NOT NULL DEFAULT (unixepoch()),
-  finished_at   INTEGER,
-  status        TEXT NOT NULL CHECK(status IN ('running', 'success', 'failed', 'partial')),
-  error_message TEXT,
-  rows_inserted INTEGER NOT NULL DEFAULT 0,
-  rows_updated  INTEGER NOT NULL DEFAULT 0
+-- 8. team_sync (Delivery/Cache metadata)
+CREATE TABLE IF NOT EXISTS team_sync (
+  tid               INTEGER PRIMARY KEY REFERENCES teams(tid) ON DELETE CASCADE,
+  last_modified_at  INTEGER NOT NULL,
+  ical_etag         TEXT,
+  ical_cached       TEXT,
+  ical_generated_at INTEGER,
+  updated_at        INTEGER NOT NULL DEFAULT (unixepoch())
 );

@@ -41,7 +41,6 @@ tgb-calendar/
 CREATE TABLE leagues (
   gid          INTEGER PRIMARY KEY,
   name         TEXT    NOT NULL,
-  venue_area   TEXT,
   day_of_week  TEXT,
   gender       TEXT,
   league_type  TEXT NOT NULL DEFAULT 'regular'
@@ -56,11 +55,9 @@ CREATE TABLE divisions (
   gid             INTEGER NOT NULL,
   season_label    TEXT    NOT NULL,
   division_label  TEXT,
-  full_title      TEXT    NOT NULL,
+  name            TEXT    NOT NULL,
   first_game_at   INTEGER,
   last_game_at    INTEGER,
-  team_count      INTEGER NOT NULL DEFAULT 0,
-  last_scraped_at INTEGER,
   created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at      INTEGER NOT NULL DEFAULT (unixepoch()),
   FOREIGN KEY (gid) REFERENCES leagues(gid)
@@ -70,9 +67,7 @@ CREATE TABLE divisions (
 CREATE TABLE teams (
   tid                   INTEGER PRIMARY KEY,
   name                  TEXT    NOT NULL,
-  name_normalized       TEXT    NOT NULL,
   last_game_at          INTEGER,
-  active_division_count INTEGER NOT NULL DEFAULT 0,
   created_at            INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at            INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -120,30 +115,22 @@ CREATE TABLE games (
   FOREIGN KEY (away_tid) REFERENCES teams(tid)
 );
 
--- team_feed_meta：iCal HTTP 快取
-CREATE TABLE team_feed_meta (
-  tid              INTEGER PRIMARY KEY,
-  last_modified_at INTEGER NOT NULL,
-  game_count       INTEGER NOT NULL DEFAULT 0,
-  etag             TEXT    NOT NULL,
-  cached_ical      TEXT,
-  generated_at     INTEGER,
-  FOREIGN KEY (tid) REFERENCES teams(tid) ON DELETE CASCADE
+-- team_sync：iCal 訂閱 Feed 快取與中繼資料
+CREATE TABLE team_sync (
+  tid               INTEGER PRIMARY KEY REFERENCES teams(tid) ON DELETE CASCADE,
+  last_modified_at  INTEGER NOT NULL,
+  ical_etag         TEXT    NOT NULL,
+  ical_cached       TEXT,
+  ical_generated_at INTEGER,
+  updated_at        INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- scrape_runs：爬蟲執行摘要 log
-CREATE TABLE scrape_runs (
-  run_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  target_type   TEXT    NOT NULL
-                CHECK (target_type IN ('homepage','division','game')),
-  target_key    TEXT,
-  started_at    INTEGER NOT NULL DEFAULT (unixepoch()),
-  finished_at   INTEGER,
-  status        TEXT    NOT NULL
-                CHECK (status IN ('running','success','failed','partial')),
-  error_message TEXT,
-  rows_inserted INTEGER NOT NULL DEFAULT 0,
-  rows_updated  INTEGER NOT NULL DEFAULT 0
+-- game_sync：iCal 傳輸中繼資料
+CREATE TABLE game_sync (
+  game_id        INTEGER PRIMARY KEY REFERENCES games(game_id) ON DELETE CASCADE,
+  ical_uid       TEXT    NOT NULL UNIQUE,
+  ical_sequence  INTEGER NOT NULL DEFAULT 0,
+  updated_at     INTEGER NOT NULL DEFAULT (unixepoch())
 );
 ```
 
@@ -159,12 +146,9 @@ CREATE TABLE scrape_runs (
 ### 執行步驟
 
 1. 爬 TGB 首頁，解析導覽列取得所有 `gid+level_id` 組合
-2. 對比 D1 `divisions` 表，找出需要爬取的分組：
-   - 從未爬過（`last_scraped_at IS NULL`）
-   - 有未來場次（`last_game_at > now()`）且距上次爬取超過設定時間
-3. 爬各分組頁面，解析球隊清單與賽程資料
-4. 寫入 D1（詳見更新邏輯）
-5. 輸出 `new_teams` 數量給 GitHub Actions
+2. 爬各分組頁面，解析球隊清單與賽程資料
+3. 寫入 D1（詳見更新邏輯）
+4. 輸出 `new_teams` 數量給 GitHub Actions
 
 ### 賽程更新邏輯
 
