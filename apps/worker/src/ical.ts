@@ -13,6 +13,8 @@ export interface GameRow {
   away_score: number | null;
   status: string;
   ical_sequence: number;
+  ical_uid: string;
+  updated_at: number;
   gid: number;
   league_name: string;
   name: string;
@@ -71,10 +73,10 @@ function addHour(timestamp: number): string {
   return formatTaipei(timestamp + 3600);
 }
 
-function nowUtc(): string {
-  const now = new Date();
+function formatUtc(timestamp: number): string {
+  const d = new Date(timestamp * 1000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
 }
 
 export function generateIcal(team: TeamInfo, games: GameRow[]): string {
@@ -102,8 +104,8 @@ export function generateIcal(team: TeamInfo, games: GameRow[]): string {
   add('END:VTIMEZONE');
 
   for (const game of games) {
-    const uid = `game-${game.game_id}@tgb.ming060.com`;
-    const dtstamp = nowUtc();
+    const uid = game.ical_uid;
+    const dtstamp = formatUtc(game.updated_at);
     const dtstart = formatTaipei(game.scheduled_at);
     const dtend = addHour(game.scheduled_at);
 
