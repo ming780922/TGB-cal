@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-const TGB_BASE_URL = 'https://tgbleague.com';
+const TGB_BASE_URL = process.env.TGB_BASE_URL || 'https://tgbleague.com';
 
 /**
  * Parse a date string from the TGB website (Taiwan time, UTC+8) to a Unix timestamp.

@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-const TGB_BASE_URL = 'https://tgbleague.com';
+const TGB_BASE_URL = process.env.TGB_BASE_URL || 'https://tgbleague.com';
 
 export async function scrapeHomepage() {
   console.log(`[scrape] GET ${TGB_BASE_URL}`);
