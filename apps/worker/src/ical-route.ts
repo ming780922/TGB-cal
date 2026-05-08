@@ -2,11 +2,10 @@ import type { Env } from './index';
 import { generateIcal } from './ical';
 import type { GameRow } from './ical';
 
-interface TeamFeedMeta {
+interface TeamSyncMeta {
   last_modified_at: number;
-  etag: string;
-  cached_ical: string | null;
-  game_count: number;
+  ical_etag: string;
+  ical_cached: string | null;
 }
 
 function toHttpDate(unixSeconds: number): string {
@@ -30,17 +29,17 @@ export async function handleIcalRequest(
     });
   }
 
-  // 3. Query team_feed_meta
+  // 3. Query team_sync
   const meta = await env.DB.prepare(
-    'SELECT last_modified_at, etag, cached_ical, game_count FROM team_feed_meta WHERE tid = ?',
+    'SELECT last_modified_at, ical_etag, ical_cached FROM team_sync WHERE tid = ?',
   )
     .bind(tid)
-    .first<TeamFeedMeta>();
+    .first<TeamSyncMeta>();
 
   if (meta) {
     // 4. Check If-None-Match (ETag)
     const ifNoneMatch = request.headers.get('If-None-Match');
-    if (ifNoneMatch && ifNoneMatch === `"${meta.etag}"`) {
+    if (ifNoneMatch && ifNoneMatch === `"${meta.ical_etag}"`) {
       return new Response(null, { status: 304 });
     }
 
@@ -54,13 +53,13 @@ export async function handleIcalRequest(
     }
 
     // 6. Return cached ical if available
-    if (meta.cached_ical) {
-      return new Response(meta.cached_ical, {
+    if (meta.ical_cached) {
+      return new Response(meta.ical_cached, {
         status: 200,
         headers: {
           'Content-Type': 'text/calendar; charset=utf-8',
           'Cache-Control': 'public, max-age=3600',
-          ETag: `"${meta.etag}"`,
+          ETag: `"${meta.ical_etag}"`,
           'Last-Modified': toHttpDate(meta.last_modified_at),
         },
       });
@@ -72,13 +71,14 @@ export async function handleIcalRequest(
     `SELECT g.game_id, g.level_id, g.home_tid, g.away_tid,
        ht.name as home_name, at.name as away_name,
        g.scheduled_at, g.venue,
-       g.home_score, g.away_score, g.status, g.ical_sequence,
+       g.home_score, g.away_score, g.status, gs.ical_sequence, gs.ical_uid, g.updated_at,
        d.gid, l.name as league_name, d.name     FROM games g
      LEFT JOIN teams ht ON g.home_tid = ht.tid
      LEFT JOIN teams at ON g.away_tid = at.tid
      JOIN divisions d ON g.level_id = d.level_id
      JOIN leagues l ON d.gid = l.gid
      JOIN team_divisions td ON td.tid = ? AND td.level_id = g.level_id
+     JOIN game_sync gs ON g.game_id = gs.game_id
      ORDER BY g.scheduled_at ASC`,
   )
     .bind(tid)
@@ -92,18 +92,17 @@ export async function handleIcalRequest(
   const lastModifiedAt = meta?.last_modified_at ?? now;
   const etag = `${tid}-${lastModifiedAt}`;
 
-  // 10. Upsert team_feed_meta
+  // 10. Upsert team_sync
   await env.DB.prepare(
-    `INSERT INTO team_feed_meta (tid, last_modified_at, game_count, etag, cached_ical, generated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(tid) DO UPDATE SET
        last_modified_at = excluded.last_modified_at,
-       game_count = excluded.game_count,
-       etag = excluded.etag,
-       cached_ical = excluded.cached_ical,
-       generated_at = excluded.generated_at`,
+       ical_etag = excluded.ical_etag,
+       ical_cached = excluded.ical_cached,
+       ical_generated_at = excluded.ical_generated_at`,
   )
-    .bind(tid, lastModifiedAt, (games ?? []).length, etag, icalContent, now)
+    .bind(tid, lastModifiedAt, etag, icalContent, now)
     .run();
 
   // 11. Return response
