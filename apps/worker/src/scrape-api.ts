@@ -211,16 +211,17 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
     // ── 5. Upsert games (with update logic) ───────────────────────────────────
     for (const game of body.games) {
       const existing = await env.DB.prepare(
-        `SELECT game_id, scheduled_at, venue, home_tid, away_tid, status, home_score, ical_sequence
-         FROM games WHERE game_id = ?`
+        `SELECT g.game_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid, g.status, g.home_score, s.ical_sequence
+         FROM games g
+         LEFT JOIN game_sync s ON g.game_id = s.game_id
+         WHERE g.game_id = ?`
       ).bind(game.game_id).first<ExistingGame>();
 
       if (!existing) {
         // New game — INSERT
-        const icalUid = `game-${game.game_id}@tgb.ming060.com`;
         await env.DB.prepare(
-          `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, ical_uid, ical_sequence, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+          `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           game.game_id,
           game.level_id,
@@ -231,10 +232,17 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
           game.home_score ?? null,
           game.away_score ?? null,
           game.status,
-          icalUid,
           now,
           now
         ).run();
+
+        // Insert game metadata into game_sync
+        const icalUid = `game-${game.game_id}@tgb.ming060.com`;
+        await env.DB.prepare(
+          `INSERT INTO game_sync (game_id, ical_uid, ical_sequence, updated_at)
+           VALUES (?, ?, 0, ?)`
+        ).bind(game.game_id, icalUid, now).run();
+
         counts.inserted.games++;
 
         // Mark home and away teams as changed
@@ -251,7 +259,7 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
 
         if (changed) {
           await env.DB.prepare(
-            `UPDATE games SET level_id = ?, home_tid = ?, away_tid = ?, scheduled_at = ?, venue = ?, status = ?, ical_sequence = ?, updated_at = ?
+            `UPDATE games SET level_id = ?, home_tid = ?, away_tid = ?, scheduled_at = ?, venue = ?, status = ?, updated_at = ?
              WHERE game_id = ?`
           ).bind(
             game.level_id,
@@ -260,10 +268,15 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
             game.scheduled_at,
             game.venue ?? null,
             game.status,
-            existing.ical_sequence + 1,
             now,
             game.game_id
           ).run();
+
+          await env.DB.prepare(
+            `UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ?
+             WHERE game_id = ?`
+          ).bind(now, game.game_id).run();
+
           counts.updated.games++;
 
           if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
@@ -277,16 +290,21 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
         const incomingHasScores = game.home_score != null && game.away_score != null;
         if (existing.home_score === null && incomingHasScores) {
           await env.DB.prepare(
-            `UPDATE games SET home_score = ?, away_score = ?, status = ?, ical_sequence = ?, updated_at = ?
+            `UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = ?
              WHERE game_id = ?`
           ).bind(
             game.home_score!,
             game.away_score!,
             game.status,
-            existing.ical_sequence + 1,
             now,
             game.game_id
           ).run();
+
+          await env.DB.prepare(
+            `UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ?
+             WHERE game_id = ?`
+          ).bind(now, game.game_id).run();
+
           counts.updated.games++;
 
           if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
@@ -297,21 +315,21 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
       }
     }
 
-    // ── 6. Invalidate team_feed_meta for changed teams ────────────────────────
+    // ── 6. Invalidate team_sync for changed teams ─────────────────────────────
     for (const tid of teamsWithGameChanges) {
       const metaExists = await env.DB.prepare(
-        'SELECT tid FROM team_feed_meta WHERE tid = ?'
+        'SELECT tid FROM team_sync WHERE tid = ?'
       ).bind(tid).first<{ tid: number }>();
 
       if (metaExists) {
         await env.DB.prepare(
-          `UPDATE team_feed_meta SET last_modified_at = ?, etag = '', cached_ical = NULL WHERE tid = ?`
-        ).bind(now, tid).run();
+          `UPDATE team_sync SET last_modified_at = ?, ical_etag = '', ical_cached = NULL, updated_at = ? WHERE tid = ?`
+        ).bind(now, now, tid).run();
       } else {
         await env.DB.prepare(
-          `INSERT INTO team_feed_meta (tid, last_modified_at, game_count, etag, cached_ical, generated_at)
-           VALUES (?, ?, 0, '', NULL, NULL)`
-        ).bind(tid, now).run();
+          `INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at, updated_at)
+           VALUES (?, ?, '', NULL, NULL, ?)`
+        ).bind(tid, now, now).run();
       }
     }
 
