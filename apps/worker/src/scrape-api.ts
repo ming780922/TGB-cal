@@ -39,14 +39,6 @@ interface GameInput {
   status: string;
 }
 
-interface ScrapeUpsertBody {
-  league: LeagueInput;
-  division: DivisionInput;
-  teams: TeamInput[];
-  team_divisions: TeamDivisionInput[];
-  games: GameInput[];
-}
-
 // ─── Existing game row type ───────────────────────────────────────────────────
 
 interface ExistingGame {
@@ -60,162 +52,135 @@ interface ExistingGame {
   ical_sequence: number;
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+// ─── Phase 1: Metadata Upsert (Leagues & Divisions) ───────────────────────────
 
-function validate(body: unknown): ScrapeUpsertBody | string {
-  if (typeof body !== 'object' || body === null) return 'Request body must be a JSON object';
-  const b = body as Record<string, unknown>;
-
-  if (!b.league || typeof b.league !== 'object') return 'Missing required field: league';
-  const league = b.league as Record<string, unknown>;
-  if (typeof league.gid !== 'number') return 'Missing required field: league.gid';
-  if (typeof league.name !== 'string') return 'Missing required field: league.name';
-
-  if (!b.division || typeof b.division !== 'object') return 'Missing required field: division';
-  const division = b.division as Record<string, unknown>;
-  if (typeof division.level_id !== 'number') return 'Missing required field: division.level_id';
-  if (typeof division.gid !== 'number') return 'Missing required field: division.gid';
-  if (typeof division.name !== 'string') return 'Missing required field: division.name';
-
-  if (!Array.isArray(b.teams)) return 'Missing required field: teams (must be array)';
-  if (!Array.isArray(b.team_divisions)) return 'Missing required field: team_divisions (must be array)';
-  if (!Array.isArray(b.games)) return 'Missing required field: games (must be array)';
-
-  return b as unknown as ScrapeUpsertBody;
-}
-
-// ─── Main handler ─────────────────────────────────────────────────────────────
-
-export async function handleScrapeUpsert(request: Request, env: Env): Promise<Response> {
-  // Auth check
+export async function handleMetadataUpsert(request: Request, env: Env): Promise<Response> {
   const authError = requireAuth(request, env);
   if (authError) return authError;
 
-  // Parse body
-  let body: ScrapeUpsertBody;
+  let body: { leagues: LeagueInput[], divisions: DivisionInput[] };
   try {
-    const raw = await request.json();
-    const result = validate(raw);
-    if (typeof result === 'string') {
-      return jsonResponse({ error: result }, 400);
-    }
-    body = result;
+    body = await request.json();
+    if (!Array.isArray(body.leagues) || !Array.isArray(body.divisions)) throw new Error('Expected arrays');
   } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ error: 'Invalid JSON body, expected leagues and divisions arrays' }, 400);
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const startedAt = now;
-
-  const counts = {
-    inserted: { leagues: 0, divisions: 0, teams: 0, games: 0 },
-    updated: { leagues: 0, divisions: 0, teams: 0, games: 0 },
-  };
-
-  // Track which team tids had game changes (for feed meta invalidation)
-  const teamsWithGameChanges = new Set<number>();
-  let newTeams = 0;
+  const counts = { leagues_inserted: 0, leagues_updated: 0, div_inserted: 0, div_updated: 0 };
 
   try {
-    // ── 1. Upsert league ──────────────────────────────────────────────────────
-    {
-      const existing = await env.DB.prepare(
-        'SELECT gid FROM leagues WHERE gid = ?'
-      ).bind(body.league.gid).first<{ gid: number }>();
-
+    // Upsert Leagues
+    for (const league of body.leagues) {
+      const existing = await env.DB.prepare('SELECT gid FROM leagues WHERE gid = ?').bind(league.gid).first<{ gid: number }>();
       if (!existing) {
-        await env.DB.prepare(
-          `INSERT INTO leagues (gid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`
-        ).bind(body.league.gid, body.league.name, now, now).run();
-        counts.inserted.leagues++;
+        await env.DB.prepare(`INSERT INTO leagues (gid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`).bind(league.gid, league.name, now, now).run();
+        counts.leagues_inserted++;
       } else {
-        await env.DB.prepare(
-          `UPDATE leagues SET name = ?, updated_at = ? WHERE gid = ?`
-        ).bind(body.league.name, now, body.league.gid).run();
-        counts.updated.leagues++;
+        await env.DB.prepare(`UPDATE leagues SET name = ?, updated_at = ? WHERE gid = ?`).bind(league.name, now, league.gid).run();
+        counts.leagues_updated++;
       }
     }
 
-    // ── 2. Upsert division ────────────────────────────────────────────────────
-    {
-      const existing = await env.DB.prepare(
-        'SELECT level_id FROM divisions WHERE level_id = ?'
-      ).bind(body.division.level_id).first<{ level_id: number }>();
-
+    // Upsert Divisions
+    for (const div of body.divisions) {
+      const existing = await env.DB.prepare('SELECT level_id FROM divisions WHERE level_id = ?').bind(div.level_id).first<{ level_id: number }>();
       if (!existing) {
-        await env.DB.prepare(
-          `INSERT INTO divisions (level_id, gid, name, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?)`
-        ).bind(
-          body.division.level_id,
-          body.division.gid,
-          body.division.name,
-          now,
-          now
-        ).run();
-        counts.inserted.divisions++;
+        await env.DB.prepare(`INSERT INTO divisions (level_id, gid, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`).bind(div.level_id, div.gid, div.name, now, now).run();
+        counts.div_inserted++;
       } else {
-        await env.DB.prepare(
-          `UPDATE divisions SET gid = ?, name = ?, updated_at = ?
-           WHERE level_id = ?`
-        ).bind(
-          body.division.gid,
-          body.division.name,
-          now,
-          body.division.level_id
-        ).run();
-        counts.updated.divisions++;
+        await env.DB.prepare(`UPDATE divisions SET gid = ?, name = ?, updated_at = ? WHERE level_id = ?`).bind(div.gid, div.name, now, div.level_id).run();
+        counts.div_updated++;
       }
     }
 
-    // ── 3. Upsert teams ───────────────────────────────────────────────────────
+    return jsonResponse({ ok: true, counts }, 200);
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ error: 'Database error', detail }, 500);
+  }
+}
+
+// ─── Phase 2: Division Upsert (Teams, Standings, Games) ───────────────────────
+
+export async function handleDivisionUpsert(request: Request, env: Env): Promise<Response> {
+  const authError = requireAuth(request, env);
+  if (authError) return authError;
+
+  let body: { teams: TeamInput[], team_divisions: TeamDivisionInput[], games: GameInput[] };
+  try {
+    body = await request.json();
+    if (!Array.isArray(body.teams) || !Array.isArray(body.team_divisions) || !Array.isArray(body.games)) throw new Error('Expected arrays');
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON body, expected teams, team_divisions, and games arrays' }, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const counts = { teams_inserted: 0, teams_updated: 0, team_divisions: 0, games_inserted: 0, games_updated: 0 };
+  const teamsWithGameChanges = new Set<number>();
+
+  try {
+    // Upsert Teams
     for (const team of body.teams) {
-      const existing = await env.DB.prepare(
-        'SELECT tid FROM teams WHERE tid = ?'
-      ).bind(team.tid).first<{ tid: number }>();
-
+      const existing = await env.DB.prepare('SELECT tid FROM teams WHERE tid = ?').bind(team.tid).first<{ tid: number }>();
       if (!existing) {
-        await env.DB.prepare(
-          `INSERT INTO teams (tid, name, created_at, updated_at)
-           VALUES (?, ?, ?, ?)`
-        ).bind(team.tid, team.name, now, now).run();
-        counts.inserted.teams++;
-        newTeams++;
+        await env.DB.prepare(`INSERT INTO teams (tid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`).bind(team.tid, team.name, now, now).run();
+        counts.teams_inserted++;
       } else {
-        await env.DB.prepare(
-          `UPDATE teams SET name = ?, updated_at = ? WHERE tid = ?`
-        ).bind(team.name, now, team.tid).run();
-        counts.updated.teams++;
+        await env.DB.prepare(`UPDATE teams SET name = ?, updated_at = ? WHERE tid = ?`).bind(team.name, now, team.tid).run();
+        counts.teams_updated++;
       }
     }
 
-    // ── 4. Upsert team_divisions ──────────────────────────────────────────────
+    // Upsert Standings (team_divisions)
     for (const td of body.team_divisions) {
-      const existing = await env.DB.prepare(
-        'SELECT tid FROM team_divisions WHERE tid = ? AND level_id = ?'
-      ).bind(td.tid, td.level_id).first<{ tid: number }>();
-
+      const existing = await env.DB.prepare('SELECT tid FROM team_divisions WHERE tid = ? AND level_id = ?').bind(td.tid, td.level_id).first<{ tid: number }>();
       if (!existing) {
-        await env.DB.prepare(
-          `INSERT INTO team_divisions (tid, level_id, wins, losses, rank, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).bind(td.tid, td.level_id, td.wins, td.losses, td.rank ?? null, now, now).run();
+        await env.DB.prepare(`INSERT INTO team_divisions (tid, level_id, wins, losses, rank, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(td.tid, td.level_id, td.wins, td.losses, td.rank ?? null, now, now).run();
       } else {
-        await env.DB.prepare(
-          `UPDATE team_divisions SET wins = ?, losses = ?, rank = ?, updated_at = ?
-           WHERE tid = ? AND level_id = ?`
-        ).bind(td.wins, td.losses, td.rank ?? null, now, td.tid, td.level_id).run();
+        await env.DB.prepare(`UPDATE team_divisions SET wins = ?, losses = ?, rank = ?, updated_at = ? WHERE tid = ? AND level_id = ?`).bind(td.wins, td.losses, td.rank ?? null, now, td.tid, td.level_id).run();
       }
+      counts.team_divisions++;
     }
 
-    // ── 5. Upsert games (with update logic) ───────────────────────────────────
+    // Upsert Games (with promotion/matching logic)
     for (const game of body.games) {
-      const existing = await env.DB.prepare(
-        `SELECT g.game_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid, g.status, g.home_score, s.ical_sequence
+      let existing = await env.DB.prepare(
+        `SELECT g.game_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid, g.status, g.home_score, s.ical_sequence, s.ical_uid
          FROM games g
          LEFT JOIN game_sync s ON g.game_id = s.game_id
          WHERE g.game_id = ?`
-      ).bind(game.game_id).first<ExistingGame>();
+      ).bind(game.game_id).first<ExistingGame & { ical_uid: string }>();
+
+      let inheritedSync: { uid: string; seq: number } | null = null;
+
+      // Promotion Fallback
+      if (!existing && game.home_tid != null && game.away_tid != null) {
+        const matched = await env.DB.prepare(
+          `SELECT g.game_id, g.scheduled_at, g.venue, g.status, s.ical_uid, s.ical_sequence
+           FROM games g
+           JOIN game_sync s ON g.game_id = s.game_id
+           WHERE g.level_id = ? AND g.home_tid = ? AND g.away_tid = ? AND g.scheduled_at = ? AND g.game_id >= 1000000000`
+        ).bind(game.level_id, game.home_tid, game.away_tid, game.scheduled_at).first<ExistingGame & { ical_uid: string }>();
+
+        if (matched) {
+          inheritedSync = { uid: matched.ical_uid, seq: matched.ical_sequence };
+          await env.DB.prepare('DELETE FROM games WHERE game_id = ?').bind(matched.game_id).run();
+        } else {
+          const gamesBetweenTeams = await env.DB.prepare(
+            `SELECT g.game_id, g.scheduled_at, g.venue, g.status, s.ical_uid, s.ical_sequence
+             FROM games g
+             JOIN game_sync s ON g.game_id = s.game_id
+             WHERE g.level_id = ? AND g.home_tid = ? AND g.away_tid = ? AND g.status = 'scheduled'`
+          ).bind(game.level_id, game.home_tid, game.away_tid).all<ExistingGame & { ical_uid: string }>();
+
+          if (gamesBetweenTeams.results.length === 1) {
+            const matched = gamesBetweenTeams.results[0];
+            inheritedSync = { uid: matched.ical_uid, seq: matched.ical_sequence };
+            await env.DB.prepare('DELETE FROM games WHERE game_id = ?').bind(matched.game_id).run();
+          }
+        }
+      }
 
       if (!existing) {
         // New game — INSERT
@@ -236,16 +201,15 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
           now
         ).run();
 
-        // Insert game metadata into game_sync
-        const icalUid = `game-${game.game_id}@tgb.ming060.com`;
+        const icalUid = inheritedSync ? inheritedSync.uid : `game-${game.game_id}@tgb.ming060.com`;
+        const icalSeq = inheritedSync ? inheritedSync.seq + 1 : 0;
+        
         await env.DB.prepare(
           `INSERT INTO game_sync (game_id, ical_uid, ical_sequence, updated_at)
-           VALUES (?, ?, 0, ?)`
-        ).bind(game.game_id, icalUid, now).run();
+           VALUES (?, ?, ?, ?)`
+        ).bind(game.game_id, icalUid, icalSeq, now).run();
 
-        counts.inserted.games++;
-
-        // Mark home and away teams as changed
+        counts.games_inserted++;
         if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
         if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
       } else if (existing.scheduled_at > now) {
@@ -261,27 +225,13 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
           await env.DB.prepare(
             `UPDATE games SET level_id = ?, home_tid = ?, away_tid = ?, scheduled_at = ?, venue = ?, status = ?, updated_at = ?
              WHERE game_id = ?`
-          ).bind(
-            game.level_id,
-            game.home_tid ?? null,
-            game.away_tid ?? null,
-            game.scheduled_at,
-            game.venue ?? null,
-            game.status,
-            now,
-            game.game_id
-          ).run();
+          ).bind(game.level_id, game.home_tid ?? null, game.away_tid ?? null, game.scheduled_at, game.venue ?? null, game.status, now, game.game_id).run();
 
-          await env.DB.prepare(
-            `UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ?
-             WHERE game_id = ?`
-          ).bind(now, game.game_id).run();
+          await env.DB.prepare(`UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ? WHERE game_id = ?`).bind(now, game.game_id).run();
 
-          counts.updated.games++;
-
+          counts.games_updated++;
           if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
           if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
-          // Also mark old teams if they changed
           if (existing.home_tid != null) teamsWithGameChanges.add(existing.home_tid);
           if (existing.away_tid != null) teamsWithGameChanges.add(existing.away_tid);
         }
@@ -289,24 +239,10 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
         // Past game — only update if scores are newly available
         const incomingHasScores = game.home_score != null && game.away_score != null;
         if (existing.home_score === null && incomingHasScores) {
-          await env.DB.prepare(
-            `UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = ?
-             WHERE game_id = ?`
-          ).bind(
-            game.home_score!,
-            game.away_score!,
-            game.status,
-            now,
-            game.game_id
-          ).run();
+          await env.DB.prepare(`UPDATE games SET home_score = ?, away_score = ?, status = ?, updated_at = ? WHERE game_id = ?`).bind(game.home_score!, game.away_score!, game.status, now, game.game_id).run();
+          await env.DB.prepare(`UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ? WHERE game_id = ?`).bind(now, game.game_id).run();
 
-          await env.DB.prepare(
-            `UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ?
-             WHERE game_id = ?`
-          ).bind(now, game.game_id).run();
-
-          counts.updated.games++;
-
+          counts.games_updated++;
           if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
           if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
           if (existing.home_tid != null) teamsWithGameChanges.add(existing.home_tid);
@@ -315,30 +251,17 @@ export async function handleScrapeUpsert(request: Request, env: Env): Promise<Re
       }
     }
 
-    // ── 6. Invalidate team_sync for changed teams ─────────────────────────────
+    // Invalidate team feeds
     for (const tid of teamsWithGameChanges) {
-      const metaExists = await env.DB.prepare(
-        'SELECT tid FROM team_sync WHERE tid = ?'
-      ).bind(tid).first<{ tid: number }>();
-
+      const metaExists = await env.DB.prepare('SELECT tid FROM team_sync WHERE tid = ?').bind(tid).first<{ tid: number }>();
       if (metaExists) {
-        await env.DB.prepare(
-          `UPDATE team_sync SET last_modified_at = ?, ical_etag = '', ical_cached = NULL, updated_at = ? WHERE tid = ?`
-        ).bind(now, now, tid).run();
+        await env.DB.prepare(`UPDATE team_sync SET last_modified_at = ?, ical_etag = '', ical_cached = NULL, updated_at = ? WHERE tid = ?`).bind(now, now, tid).run();
       } else {
-        await env.DB.prepare(
-          `INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at, updated_at)
-           VALUES (?, ?, '', NULL, NULL, ?)`
-        ).bind(tid, now, now).run();
+        await env.DB.prepare(`INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at, updated_at) VALUES (?, ?, '', NULL, NULL, ?)`).bind(tid, now, now).run();
       }
     }
 
-    return jsonResponse({
-      ok: true,
-      inserted: counts.inserted,
-      updated: counts.updated,
-      new_teams: newTeams,
-    }, 200);
+    return jsonResponse({ ok: true, counts }, 200);
   } catch (err: unknown) {
     const detail = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: 'Database error', detail }, 500);

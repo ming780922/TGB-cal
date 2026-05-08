@@ -1,6 +1,6 @@
 import { scrapeHomepage } from './homepage.js';
 import { scrapeDivision } from './division.js';
-import { upsertDivisionData } from './api-client.js';
+import { upsertMetadata, upsertDivisionData } from './api-client.js';
 
 const REQUEST_DELAY_MS = 1000;
 
@@ -12,35 +12,11 @@ function sleep(ms) {
 }
 
 /**
- * Handles the scrape-and-upsert lifecycle for a single division.
- * @returns {Promise<{ newTeams: number, success: boolean }>}
- */
-async function processDivisionTask(task) {
-  const { gid, level_id, league_name, division_name } = task;
-  console.log(`[scraper] Processing: ${division_name} (gid=${gid}, level_id=${level_id})`);
-
-  try {
-    const data = await scrapeDivision(gid, level_id, league_name, division_name);
-    console.log(`  - Found ${data.teams.length} teams, ${data.games.length} games. Upserting...`);
-
-    const result = await upsertDivisionData(data);
-    const newTeams = result.new_teams || 0;
-
-    console.log(`  - Done: inserted=${JSON.stringify(result.inserted)}, updated=${JSON.stringify(result.updated)}, new_teams=${newTeams}`);
-    return { newTeams, success: true };
-  } catch (err) {
-    console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
-    return { newTeams: 0, success: false };
-  }
-}
-
-/**
  * Main orchestration function.
  */
 async function main() {
   console.log('[scraper] Starting FULL TGB crawl...');
 
-  let totalNewTeams = 0;
   let successCount = 0;
   let errorCount = 0;
 
@@ -48,18 +24,33 @@ async function main() {
     const divisions = await scrapeHomepage();
     console.log(`[scraper] Found ${divisions.length} divisions to scrape.`);
 
+    // 1. Batch Upsert Metadata (Leagues & Divisions)
+    const uniqueLeaguesMap = new Map();
+    divisions.forEach(d => uniqueLeaguesMap.set(d.gid, { gid: d.gid, name: d.league_name }));
+    const leaguesArray = Array.from(uniqueLeaguesMap.values());
+    
+    const divisionsArray = divisions.map(d => ({ level_id: d.level_id, gid: d.gid, name: d.division_name }));
+    
+    console.log(`[scraper] Upserting ${leaguesArray.length} leagues and ${divisionsArray.length} divisions...`);
+    await upsertMetadata(leaguesArray, divisionsArray);
+
+    // 2. Process Per Division
     for (let i = 0; i < divisions.length; i++) {
-      console.log(`[scraper] [${i + 1}/${divisions.length}]`);
-
+      console.log(`[scraper] [${i + 1}/${divisions.length}] Processing: ${divisions[i].league_name}, ${divisions[i].division_name}`);
       const { gid, level_id, league_name, division_name } = divisions[i];
-      console.log(`[scraper] Processing: ${league_name}, ${division_name} (gid=${gid}, level_id=${level_id})`);
 
-      const result = await processDivisionTask(divisions[i]);
-
-      totalNewTeams += result.newTeams;
-      if (result.success) {
+      try {
+        const data = await scrapeDivision(gid, level_id, league_name, division_name);
+        
+        console.log(`  - Sending ${data.teams.length} teams, ${data.team_divisions.length} standings, and ${data.games.length} games...`);
+        
+        const result = await upsertDivisionData(data.teams, data.team_divisions, data.games);
+        
+        console.log(`  - Done: teams=${JSON.stringify(result.counts.teams_inserted + result.counts.teams_updated)}, games=${JSON.stringify(result.counts.games_inserted + result.counts.games_updated)}`);
+        
         successCount++;
-      } else {
+      } catch (err) {
+        console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
         errorCount++;
       }
 
@@ -73,7 +64,6 @@ async function main() {
     console.log(`- Total Divisions: ${divisions.length}`);
     console.log(`- Successfully Processed: ${successCount}`);
     console.log(`- Failed: ${errorCount}`);
-    console.log(`- Total New Teams: ${totalNewTeams}`);
     console.log('='.repeat(50));
   } catch (err) {
     console.error('[scraper] Fatal error during crawl:', err);

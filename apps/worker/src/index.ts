@@ -15,10 +15,11 @@ export default {
       return handleIcalRequest(request, env, Number(icalMatch[1]));
     }
 
-    // Route: POST /api/scrape/upsert
-    if (path === '/api/scrape/upsert' && request.method === 'POST') {
-      const { handleScrapeUpsert } = await import('./scrape-api');
-      return handleScrapeUpsert(request, env);
+    // API Scraper Routes
+    if (path.startsWith('/api/scrape/') && request.method === 'POST') {
+      const apiModule = await import('./scrape-api');
+      if (path === '/api/scrape/metadata') return apiModule.handleMetadataUpsert(request, env);
+      if (path === '/api/scrape/division') return apiModule.handleDivisionUpsert(request, env);
     }
 
     return new Response(JSON.stringify({ error: 'Not found' }), {

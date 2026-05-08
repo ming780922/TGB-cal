@@ -4,9 +4,8 @@ const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY;
 if (!WORKER_BASE_URL) throw new Error('WORKER_BASE_URL environment variable is required');
 if (!SCRAPER_API_KEY) throw new Error('SCRAPER_API_KEY environment variable is required');
 
-export async function upsertDivisionData(data) {
-  const url = `${WORKER_BASE_URL}/api/scrape/upsert`;
-
+async function postData(endpoint, data) {
+  const url = `${WORKER_BASE_URL}${endpoint}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -31,4 +30,18 @@ export async function upsertDivisionData(data) {
   }
 
   return response.json();
+}
+
+/**
+ * Sync global metadata (leagues and divisions).
+ */
+export async function upsertMetadata(leagues, divisions) {
+  return postData('/api/scrape/metadata', { leagues, divisions });
+}
+
+/**
+ * Sync division-specific data (teams, standings, and games).
+ */
+export async function upsertDivisionData(teams, teamDivisions, games) {
+  return postData('/api/scrape/division', { teams, team_divisions: teamDivisions, games });
 }

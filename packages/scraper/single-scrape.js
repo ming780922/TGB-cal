@@ -1,7 +1,5 @@
 import { scrapeDivision } from './division.js';
-import { upsertDivisionData } from './api-client.js';
-
-const REQUEST_DELAY_MS = 1000;
+import { upsertMetadata, upsertDivisionData } from './api-client.js';
 
 /**
  * Utility to wait between requests to avoid overwhelming the server.
@@ -11,78 +9,40 @@ function sleep(ms) {
 }
 
 /**
- * Handles the scrape-and-upsert lifecycle for a single division.
- * @returns {Promise<{ newTeams: number, success: boolean }>}
- */
-async function processDivisionTask(task) {
-  const { gid, level_id, league_name, division_name } = task;
-  console.log(`[scraper] Processing: ${division_name} (gid=${gid}, level_id=${level_id})`);
-
-  try {
-    const data = await scrapeDivision(gid, level_id, league_name, division_name);
-    console.log(`  - Found ${data.teams.length} teams, ${data.games.length} games. Upserting...`);
-    
-    const result = await upsertDivisionData(data);
-    const newTeams = result.new_teams || 0;
-    
-    console.log(`  - Done: inserted=${JSON.stringify(result.inserted)}, updated=${JSON.stringify(result.updated)}, new_teams=${newTeams}`);
-    return { newTeams, success: true };
-  } catch (err) {
-    console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
-    return { newTeams: 0, success: false };
-  }
-}
-
-/**
  * Main orchestration function.
  */
 async function main() {
-  console.log('[scraper] Starting FULL TGB crawl...');
-
-  let totalNewTeams = 0;
-  let successCount = 0;
-  let errorCount = 0;
+  console.log('[scraper] Starting SINGLE division scrape...');
 
   try {
-    const divisions = [
-      {
-        gid: 211,
-        level_id: 1157,
-        league_name: '2026年第一季和平信義週六男子組',
-        division_name: '和平信義 C5',
-      }
-    ];
-    console.log(`[scraper] Found ${divisions.length} divisions to scrape.`);
+    const task = {
+      gid: 211,
+      level_id: 1157,
+      league_name: '2026年第一季和平信義週六男子組',
+      division_name: '和平信義 C5',
+    };
 
-    for (let i = 0; i < divisions.length; i++) {
-      console.log(`[scraper] [${i + 1}/${divisions.length}]`);
+    // 1. Sync Metadata
+    console.log(`[scraper] Syncing metadata for league: ${task.league_name}`);
+    await upsertMetadata(
+      [{ gid: task.gid, name: task.league_name }],
+      [{ level_id: task.level_id, gid: task.gid, name: task.division_name }]
+    );
 
-      const { gid, level_id, league_name, division_name } = divisions[i];
-      console.log(`[scraper] Processing: ${league_name}, ${division_name} (gid=${gid}, level_id=${level_id})`);
-
-      const result = await processDivisionTask(divisions[i]);
-      
-      totalNewTeams += result.newTeams;
-      if (result.success) {
-        successCount++;
-      } else {
-        errorCount++;
-      }
-
-      if (i < divisions.length - 1) {
-        await sleep(REQUEST_DELAY_MS);
-      }
-    }
+    // 2. Sync Division Data
+    console.log(`[scraper] Processing: ${task.division_name} (gid=${task.gid}, level_id=${task.level_id})`);
+    const data = await scrapeDivision(task.gid, task.level_id, task.league_name, task.division_name);
+    
+    console.log(`  - Found ${data.teams.length} teams, ${data.games.length} games. Upserting...`);
+    const result = await upsertDivisionData(data.teams, data.team_divisions, data.games);
+    
+    console.log(`  - Done: teams=${JSON.stringify(result.counts.teams_inserted + result.counts.teams_updated)}, games=${JSON.stringify(result.counts.games_inserted + result.counts.games_updated)}`);
 
     console.log('\n' + '='.repeat(50));
-    console.log('[scraper] Crawl complete.');
-    console.log(`- Total Divisions: ${divisions.length}`);
-    console.log(`- Successfully Processed: ${successCount}`);
-    console.log(`- Failed: ${errorCount}`);
-    console.log(`- Total New Teams: ${totalNewTeams}`);
+    console.log('[scraper] Scrape complete.');
     console.log('='.repeat(50));
   } catch (err) {
-    console.error('[scraper] Fatal error during crawl:', err);
+    console.error('[scraper] Fatal error:', err);
     process.exit(1);
   }
 }
