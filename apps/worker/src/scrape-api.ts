@@ -53,6 +53,12 @@ interface ExistingGame {
   ical_sequence: number;
 }
 
+interface ChangedEvent {
+  tid: number;
+  event_type: 'new_game' | 'game_completed' | 'game_rescheduled';
+  game_id: number;
+}
+
 // ─── Phase 1: Metadata Upsert (Leagues & Divisions) ───────────────────────────
 
 export async function handleMetadataUpsert(request: Request, env: Env): Promise<Response> {
@@ -118,7 +124,10 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
 
   const now = Math.floor(Date.now() / 1000);
   const counts = { teams_inserted: 0, teams_updated: 0, team_divisions: 0, games_inserted: 0, games_updated: 0 };
-  const teamsWithGameChanges = new Set<number>();
+  const changedEvents: ChangedEvent[] = [];
+  const recordEvent = (tid: number | null | undefined, event_type: ChangedEvent['event_type'], game_id: number) => {
+    if (tid != null) changedEvents.push({ tid, event_type, game_id });
+  };
 
   try {
     // Upsert Teams
@@ -212,8 +221,8 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
         ).bind(game.game_id, icalUid, icalSeq, now).run();
 
         counts.games_inserted++;
-        if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
-        if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
+        recordEvent(game.home_tid, 'new_game', game.game_id);
+        recordEvent(game.away_tid, 'new_game', game.game_id);
       } else if (existing.scheduled_at > now) {
         // Future game — compare key fields
         const changed =
@@ -232,10 +241,10 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
           await env.DB.prepare(`UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ? WHERE game_id = ?`).bind(now, game.game_id).run();
 
           counts.games_updated++;
-          if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
-          if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
-          if (existing.home_tid != null) teamsWithGameChanges.add(existing.home_tid);
-          if (existing.away_tid != null) teamsWithGameChanges.add(existing.away_tid);
+          recordEvent(game.home_tid, 'game_rescheduled', game.game_id);
+          recordEvent(game.away_tid, 'game_rescheduled', game.game_id);
+          recordEvent(existing.home_tid, 'game_rescheduled', game.game_id);
+          recordEvent(existing.away_tid, 'game_rescheduled', game.game_id);
         }
       } else {
         // Past game — only update if scores are newly available
@@ -245,15 +254,16 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
           await env.DB.prepare(`UPDATE game_sync SET ical_sequence = ical_sequence + 1, updated_at = ? WHERE game_id = ?`).bind(now, game.game_id).run();
 
           counts.games_updated++;
-          if (game.home_tid != null) teamsWithGameChanges.add(game.home_tid);
-          if (game.away_tid != null) teamsWithGameChanges.add(game.away_tid);
-          if (existing.home_tid != null) teamsWithGameChanges.add(existing.home_tid);
-          if (existing.away_tid != null) teamsWithGameChanges.add(existing.away_tid);
+          recordEvent(game.home_tid, 'game_completed', game.game_id);
+          recordEvent(game.away_tid, 'game_completed', game.game_id);
+          recordEvent(existing.home_tid, 'game_completed', game.game_id);
+          recordEvent(existing.away_tid, 'game_completed', game.game_id);
         }
       }
     }
 
     // Invalidate team feeds
+    const teamsWithGameChanges = new Set(changedEvents.map(e => e.tid));
     for (const tid of teamsWithGameChanges) {
       const metaExists = await env.DB.prepare('SELECT tid FROM team_sync WHERE tid = ?').bind(tid).first<{ tid: number }>();
       if (metaExists) {
@@ -263,7 +273,16 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
       }
     }
 
-    return jsonResponse({ ok: true, counts }, 200);
+    // Deduplicate: one entry per (tid, event_type) — keep first game_id seen
+    const seen = new Set<string>();
+    const dedupedChanged = changedEvents.filter(e => {
+      const key = `${e.tid}:${e.event_type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return jsonResponse({ ok: true, counts, changed: dedupedChanged }, 200);
   } catch (err: unknown) {
     const detail = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: 'Database error', detail }, 500);
