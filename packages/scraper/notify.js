@@ -23,6 +23,10 @@ const EVENT_BODY = {
  * @param {Array<{ tid: number, event_type: string, game_id: number }>} changedEvents
  */
 export async function sendNotifications(changedEvents) {
+  if (!WORKER_BASE_URL || !SCRAPER_API_KEY) {
+    console.warn('[notify] WORKER_BASE_URL or SCRAPER_API_KEY not configured — skipping push notifications');
+    return;
+  }
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || !VAPID_SUBJECT) {
     console.warn('[notify] VAPID keys not configured — skipping push notifications');
     return;
@@ -65,6 +69,8 @@ export async function sendNotifications(changedEvents) {
     const topEvent =
       EVENT_PRIORITY.map(et => events.find(e => e.event_type === et)).find(Boolean) ??
       events[0];
+
+    if (!topEvent) continue;
 
     const payload = JSON.stringify({
       title: `${sub.team_name} 有消息`,

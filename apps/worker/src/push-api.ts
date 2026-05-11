@@ -34,6 +34,29 @@ export async function handleListSubscriptions(request: Request, env: Env): Promi
   }
 }
 
+export async function handleDeleteSubscription(request: Request, env: Env): Promise<Response> {
+  let body: { tid: number; endpoint: string };
+  try {
+    body = await request.json();
+    if (typeof body.tid !== 'number' || body.tid <= 0 || !body.endpoint) {
+      throw new Error('missing fields');
+    }
+  } catch {
+    return json({ error: 'Invalid body' }, 400);
+  }
+
+  try {
+    await env.DB.prepare(
+      'DELETE FROM push_subscriptions WHERE endpoint = ? AND tid = ?'
+    ).bind(body.endpoint, body.tid).run();
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return json({ error: 'DB error', detail }, 500);
+  }
+
+  return new Response(null, { status: 204 });
+}
+
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,

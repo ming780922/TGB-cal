@@ -28,6 +28,12 @@ export default {
       return pushModule.handleListSubscriptions(request, env);
     }
 
+    // Push unsubscribe cleanup (called by notify.js for 410 Gone responses)
+    if (path === '/api/push/subscribe' && request.method === 'DELETE') {
+      const pushModule = await import('./push-api');
+      return pushModule.handleDeleteSubscription(request, env);
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
