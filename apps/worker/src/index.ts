@@ -22,6 +22,12 @@ export default {
       if (path === '/api/scrape/division') return apiModule.handleDivisionUpsert(request, env);
     }
 
+    // Push subscriptions list (scraper-facing, auth required)
+    if (path === '/api/push/subscriptions' && request.method === 'GET') {
+      const pushModule = await import('./push-api');
+      return pushModule.handleListSubscriptions(request, env);
+    }
+
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
