@@ -44,7 +44,7 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
     const subJson = pushSub.toJSON();
-    await fetch('/api/push/subscribe', {
+    const res = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -55,6 +55,7 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
         auth: subJson.keys!.auth,
       }),
     });
+    if (!res.ok) throw new Error(`Subscribe failed: ${res.status}`);
     localStorage.setItem(storageKey(tid), 'true');
     setSubscribed(true);
   };
@@ -64,11 +65,12 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
     if (reg) {
       const pushSub = await reg.pushManager.getSubscription();
       if (pushSub) {
-        await fetch('/api/push/subscribe', {
+        const res = await fetch('/api/push/subscribe', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tid, endpoint: pushSub.endpoint }),
         });
+        if (!res.ok) throw new Error(`Unsubscribe failed: ${res.status}`);
         await pushSub.unsubscribe();
       }
     }

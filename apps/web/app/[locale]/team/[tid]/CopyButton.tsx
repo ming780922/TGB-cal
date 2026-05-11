@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface CopyButtonProps {
   url: string;
@@ -10,6 +10,9 @@ interface CopyButtonProps {
 
 export default function CopyButton({ url, label, copiedLabel }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const handleCopy = async () => {
     try {
@@ -23,7 +26,8 @@ export default function CopyButton({ url, label, copiedLabel }: CopyButtonProps)
       document.body.removeChild(input);
     }
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
   };
 
   return (

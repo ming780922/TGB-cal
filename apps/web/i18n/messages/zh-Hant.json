@@ -16,7 +16,7 @@
     "loss": "負",
     "sched": "已排",
     "seasons": "賽季",
-    "scheduledOf": "已排 {s} / {t}",
+    "scheduledOf": "已排 {s} / {total}",
     "nextMatch": "下一場",
     "vs": "vs",
     "subscribeHeader": "訂閱賽程",

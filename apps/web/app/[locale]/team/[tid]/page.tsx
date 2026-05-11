@@ -104,10 +104,10 @@ export default async function TeamPage({ params }: Props) {
     const upcomingResult = await env.DB.prepare(`
       SELECT g.game_id, g.level_id, g.scheduled_at, g.venue, g.status,
              g.home_tid, g.away_tid,
-             ht.name as home_name, at.name as away_name
+             ht.name as home_name, away_t.name as away_name
       FROM games g
       JOIN teams ht ON ht.tid = g.home_tid
-      JOIN teams at ON at.tid = g.away_tid
+      JOIN teams away_t ON away_t.tid = g.away_tid
       WHERE (g.home_tid = ? OR g.away_tid = ?) AND g.status = 'scheduled'
       ORDER BY g.scheduled_at ASC
       LIMIT 10
@@ -220,7 +220,7 @@ export default async function TeamPage({ params }: Props) {
                         </div>
                         <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
                           {displayTitle !== div.league_name ? `${displayTitle} · ` : ''}
-                          {t('scheduledOf', { s: div.scheduled_count, t: div.total_count })}
+                          {t('scheduledOf', { s: div.scheduled_count, total: div.total_count })}
                         </div>
                       </div>
 

@@ -16,7 +16,7 @@
     "loss": "Loss",
     "sched": "Sched",
     "seasons": "Seasons",
-    "scheduledOf": "{s} of {t} scheduled",
+    "scheduledOf": "{s} of {total} scheduled",
     "nextMatch": "Next match",
     "vs": "vs",
     "subscribeHeader": "Subscribe",
