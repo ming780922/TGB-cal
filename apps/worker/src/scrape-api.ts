@@ -22,6 +22,7 @@ interface TeamInput {
 interface TeamDivisionInput {
   tid: number;
   level_id: number;
+  gid: number;
   wins: number;
   losses: number;
   rank?: number;
@@ -72,11 +73,11 @@ export async function handleMetadataUpsert(request: Request, env: Env): Promise<
   try {
     // Upsert Leagues
     for (const league of body.leagues) {
-      const existing = await env.DB.prepare('SELECT gid FROM leagues WHERE gid = ?').bind(league.gid).first<{ gid: number }>();
+      const existing = await env.DB.prepare('SELECT gid, name FROM leagues WHERE gid = ?').bind(league.gid).first<{ gid: number; name: string }>();
       if (!existing) {
         await env.DB.prepare(`INSERT INTO leagues (gid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`).bind(league.gid, league.name, now, now).run();
         counts.leagues_inserted++;
-      } else {
+      } else if (existing.name !== league.name) {
         await env.DB.prepare(`UPDATE leagues SET name = ?, updated_at = ? WHERE gid = ?`).bind(league.name, now, league.gid).run();
         counts.leagues_updated++;
       }
@@ -84,12 +85,12 @@ export async function handleMetadataUpsert(request: Request, env: Env): Promise<
 
     // Upsert Divisions
     for (const div of body.divisions) {
-      const existing = await env.DB.prepare('SELECT level_id FROM divisions WHERE level_id = ?').bind(div.level_id).first<{ level_id: number }>();
+      const existing = await env.DB.prepare('SELECT level_id, gid, name FROM divisions WHERE level_id = ? AND gid = ?').bind(div.level_id, div.gid).first<{ level_id: number; gid: number; name: string }>();
       if (!existing) {
         await env.DB.prepare(`INSERT INTO divisions (level_id, gid, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`).bind(div.level_id, div.gid, div.name, now, now).run();
         counts.div_inserted++;
-      } else {
-        await env.DB.prepare(`UPDATE divisions SET gid = ?, name = ?, updated_at = ? WHERE level_id = ?`).bind(div.gid, div.name, now, div.level_id).run();
+      } else if (existing.name !== div.name) {
+        await env.DB.prepare(`UPDATE divisions SET name = ?, updated_at = ? WHERE level_id = ? AND gid = ?`).bind(div.name, now, div.level_id, div.gid).run();
         counts.div_updated++;
       }
     }
@@ -122,11 +123,11 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
   try {
     // Upsert Teams
     for (const team of body.teams) {
-      const existing = await env.DB.prepare('SELECT tid FROM teams WHERE tid = ?').bind(team.tid).first<{ tid: number }>();
+      const existing = await env.DB.prepare('SELECT tid, name FROM teams WHERE tid = ?').bind(team.tid).first<{ tid: number; name: string }>();
       if (!existing) {
         await env.DB.prepare(`INSERT INTO teams (tid, name, created_at, updated_at) VALUES (?, ?, ?, ?)`).bind(team.tid, team.name, now, now).run();
         counts.teams_inserted++;
-      } else {
+      } else if (existing.name !== team.name) {
         await env.DB.prepare(`UPDATE teams SET name = ?, updated_at = ? WHERE tid = ?`).bind(team.name, now, team.tid).run();
         counts.teams_updated++;
       }
@@ -134,13 +135,14 @@ export async function handleDivisionUpsert(request: Request, env: Env): Promise<
 
     // Upsert Standings (team_divisions)
     for (const td of body.team_divisions) {
-      const existing = await env.DB.prepare('SELECT tid FROM team_divisions WHERE tid = ? AND level_id = ?').bind(td.tid, td.level_id).first<{ tid: number }>();
+      const existing = await env.DB.prepare('SELECT tid, wins, losses, rank FROM team_divisions WHERE tid = ? AND level_id = ? AND gid = ?').bind(td.tid, td.level_id, td.gid).first<{ tid: number; wins: number; losses: number; rank: number | null }>();
       if (!existing) {
-        await env.DB.prepare(`INSERT INTO team_divisions (tid, level_id, wins, losses, rank, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(td.tid, td.level_id, td.wins, td.losses, td.rank ?? null, now, now).run();
-      } else {
-        await env.DB.prepare(`UPDATE team_divisions SET wins = ?, losses = ?, rank = ?, updated_at = ? WHERE tid = ? AND level_id = ?`).bind(td.wins, td.losses, td.rank ?? null, now, td.tid, td.level_id).run();
+        await env.DB.prepare(`INSERT INTO team_divisions (tid, level_id, gid, wins, losses, rank, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(td.tid, td.level_id, td.gid, td.wins, td.losses, td.rank ?? null, now, now).run();
+        counts.team_divisions++;
+      } else if (existing.wins !== td.wins || existing.losses !== td.losses || existing.rank !== (td.rank ?? null)) {
+        await env.DB.prepare(`UPDATE team_divisions SET wins = ?, losses = ?, rank = ?, updated_at = ? WHERE tid = ? AND level_id = ? AND gid = ?`).bind(td.wins, td.losses, td.rank ?? null, now, td.tid, td.level_id, td.gid).run();
+        counts.team_divisions++;
       }
-      counts.team_divisions++;
     }
 
     // Upsert Games (with promotion/matching logic)

@@ -52,12 +52,13 @@ END;
 CREATE TABLE IF NOT EXISTS team_divisions (
   tid      INTEGER NOT NULL REFERENCES teams(tid) ON DELETE CASCADE,
   level_id INTEGER NOT NULL REFERENCES divisions(level_id) ON DELETE CASCADE,
+  gid      INTEGER NOT NULL REFERENCES leagues(gid),
   wins     INTEGER NOT NULL DEFAULT 0,
   losses   INTEGER NOT NULL DEFAULT 0,
   rank     INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  PRIMARY KEY (tid, level_id)
+  PRIMARY KEY (tid, level_id, gid)
 );
 
 -- 6. games (Domain facts only)

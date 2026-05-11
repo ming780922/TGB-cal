@@ -84,6 +84,7 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
     teamDivisions.push({
       tid,
       level_id: parseInt(levelId),
+      gid: parseInt(gid),
       wins,
       losses,
       rank: isNaN(rank) ? null : rank,

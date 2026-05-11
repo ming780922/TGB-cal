@@ -1,0 +1,351 @@
+/* ----------------------------------------------------------------
+  Custom CSS
+
+  Add all your Custom Styled CSS here for New Styles or
+  Overwriting Default Theme Styles for Better Hanlding Updates
+-----------------------------------------------------------------*/
+
+th,td {
+  text-align: center;
+  vertical-align: middle !important; 
+}
+
+/* TGB Division fix*/
+td p {
+  margin-bottom: 0;
+}
+
+.fillgray {
+  fill: gainsboro;
+}
+
+.divi-Sche-btn {
+  font-size: 12px;
+    padding: 0 10px;
+    line-height: 28px !important;
+    height: 30px;
+    border: 1px solid black !important;
+    font-weight: normal !important;
+}
+
+.divi-Sche-icon {
+  font-size: 28px;
+}
+
+.divi-Sche-table, .divi-Sche-table th {
+  text-align: center;
+}
+
+.divi-Sche-home-away {
+  width: 20px;
+}
+
+
+.divi-Sche-win {
+  color: red;
+  font-weight: bold;
+}
+
+.event-table th:nth-child(1) {
+  width: 9em;
+}
+
+.tgbnews_sed_post {
+  background-size: cover;
+  height: 400px !important;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.527),rgba(0, 0, 0, 0.5)) , url(EauDp1hUcAAE-bK.jpg);
+}
+
+.tgbnews_sed_post div {
+    position: absolute;
+    bottom: 10%;
+}
+
+h1,h2,h3,h4,h5,h6 {
+font-family:'Noto Sans TC','PingFang TC','Microsoft YaHei','Helvetica Neue',sans-serif;}!important
+
+.tgb_have_event {
+    font-weight: bold;
+    color: #cea364;
+}
+
+
+/*
+test*/
+html {
+  box-sizing: border-box;
+}
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+.intro {
+  max-width: 1280px;
+  margin: 1em auto;
+}
+.table-scroll {
+  position: relative;
+  width:100%;
+  z-index: 1;
+  margin: auto;
+  overflow: auto;
+  border: 1px solid #dddddd;
+}
+.table-scroll table {
+  width: 100%;
+  margin: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.table-wrap {
+  position: relative;
+}
+.table-scroll th,
+.table-scroll td {
+  padding: 5px 10px;
+  vertical-align: top;
+  border: 1px solid #dddddd;
+}
+.table-scroll thead th {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  background-color: white;
+}
+/* safari and ios need the tfoot itself to be position:sticky also */
+.table-scroll tfoot,
+.table-scroll tfoot th,
+.table-scroll tfoot td {
+  position: -webkit-sticky;
+  position: sticky;
+  bottom: 0;
+  background-color: white;
+  z-index:4;
+  border: 1px solid #dddddd;
+}
+
+.frezze th:nth-child(-n+1) {
+  position: -webkit-sticky;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: white;
+}
+.frezze thead th:nth-child(-n+1),
+.frezze tfoot th:nth-child(-n+1) {
+  z-index: 5;
+}
+.frezze thead th:nth-child(3){
+	width: 52px;
+}
+
+.frezze thead th:nth-child(4){
+  width: 45px;
+}
+
+.frezze thead th:nth-child(7){
+  width: 45px;
+}
+
+.frezze thead th:nth-child(10){
+  width: 45px;
+}
+
+.frezze thead th:nth-child(13){
+  width: 45px;
+}
+
+.frezze thead th:nth-child(14){
+  width: 47px;
+}
+
+.frezze thead th:nth-child(6){
+	width: 53px;
+}
+
+.frezze thead th:nth-child(9){
+	width: 53px;
+}
+
+.frezze thead th:nth-child(12){
+	width: 53px;
+}
+
+.tgblinel {
+  border-left: 4px solid #dddddd !important;
+}
+
+.tgbliner {
+  border-right: 4px solid #dddddd !important;
+}
+
+.spaceifix {
+  margin-right: 5px;
+}
+
+#slider {
+  min-height: 600px !important;
+}
+
+.ytvdo {
+  width: 100%;
+  height: 600px;
+}
+
+@media (max-width: 768px) {
+
+  .container, #header.full-header .container, .container-fullwidth {
+    width: 100% !important;
+  }
+  .table-scroll table {
+      min-width: 1170px;
+  }
+
+  .content-wrap {
+  }
+
+  .iframe {
+    display: none;
+  }
+
+  .ytvdo {
+  height: 190px;
+}
+
+}
+
+@media (max-width: 991px) {
+    #slider {
+    min-height: auto !important;
+  }
+
+}
+
+.player-image {
+  width: 100px !important; 
+}
+
+.player-image img {
+    -webkit-border-radius: 100px;
+    -moz-border-radius: 100px;
+    border-radius: 100px;
+}
+
+.player-desc {
+  padding: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .player-image {
+    margin: auto !important;
+  }
+  .player-desc {
+    text-align: center !important;
+  }
+}
+
+@media (min-width: 992px) {
+
+
+#primary-menu ul li ul li:nth-child(4) ul {
+    top: -150px !important;
+ }
+}
+#primary-menu ul li ul li:nth-child() ul {
+    top: -400px !important;
+ }
+}
+
+.tgbschedule .entry {
+	padding: 10px 0 0 20px;
+
+}
+
+@media (max-width: 479px) {
+.container, #header.full-header .container, .container-fullwidth {
+    width: 100% !important;
+	}
+}
+
+@media (min-width: 1200px) {
+.container {
+  width: 1235px !important;
+  }
+}
+
+/*news hero text fix*/
+@media (max-width: 767px) {
+#top-social, #slider:not(.swiper_wrapper) .slider-caption, .nivo-caption, .flex-caption, .slider-caption p, .slider-caption .button, .camera_caption, .ei-title, .slider-arrow-top-sm, .slider-arrow-bottom-sm {
+    display: block !important;
+}
+}
+
+/*team sub menu fix*/
+@media (max-width: 991px) {
+#page-menu nav {
+    display: none;
+    position: absolute;
+    float: none;
+    width: 91% !important;
+    top: 43px;
+    left: auto;
+    right: 15px;
+    height: auto;
+    z-index: 11;
+	}
+}
+
+/*
+2023 league list*/
+
+.togglec, .togglet {
+  padding: 0 15px !important;
+}
+
+.togglec .panel ul li a:hover {
+  cursor: pointer !important;
+}
+
+/*聯盟清單僅手機顯示*/
+@media (min-width: 767px) {
+  .menu-mobile {
+    display: none !important;
+  }
+}
+
+/*聯盟清單僅手機顯示*/
+@media (max-width: 767px) {
+  .menu-desk {
+    display: none;
+  }
+  .togglet {
+    font-size: 15px !important;
+  }
+}
+
+/*2024 update*/
+
+.red {
+ color: red;
+}
+
+.white {
+  color: white;
+}
+
+.black {
+  color: black;
+}
+.btnbrand {
+    color: #ffffff!important;
+    background-color: #cea364!important;
+    border-color: none!important;
+}
+
+.tgbhead {
+    color: white;
+    background: black;
+}
+}
