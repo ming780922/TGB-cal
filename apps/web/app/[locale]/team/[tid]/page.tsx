@@ -135,10 +135,10 @@ export default async function TeamPage({ params }: Props) {
     // All divisions for this team, sorted by last game date (most recent first)
     const divResult = await env.DB.prepare(`
       SELECT td.wins, td.losses, td.rank,
-             d.level_id, d.gid, d.name, d.last_game_at,
+             d.level_id, d.gid, d.name,
              l.name as league_name,
-             (SELECT COUNT(*) FROM games g 
-              WHERE g.level_id = d.level_id 
+             (SELECT COUNT(*) FROM games g
+              WHERE g.level_id = d.level_id
               AND (g.home_tid = td.tid OR g.away_tid = td.tid)
               AND g.status = 'scheduled'
               AND g.scheduled_at > ?) as scheduled_count
@@ -146,7 +146,7 @@ export default async function TeamPage({ params }: Props) {
       JOIN divisions d ON d.level_id = td.level_id
       JOIN leagues l ON l.gid = d.gid
       WHERE td.tid = ?
-      ORDER BY d.last_game_at DESC
+      ORDER BY d.updated_at DESC
     `).bind(now, Number(tid)).all<DivisionRow>();
     teamDivisions = divResult.results ?? [];
 
