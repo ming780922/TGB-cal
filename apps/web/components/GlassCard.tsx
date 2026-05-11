@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
+
 interface GlassCardProps {
   className?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function GlassCard({ className = '', children }: GlassCardProps) {

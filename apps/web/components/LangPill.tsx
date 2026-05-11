@@ -10,8 +10,9 @@ export function LangPill() {
 
   const toggle = () => {
     const next = locale === 'zh-Hant' ? 'en' : 'zh-Hant';
-    const newPath = pathname.replace(`/${locale}`, `/${next}`);
-    router.push(newPath);
+    const segments = pathname.split('/');
+    segments[1] = next;
+    router.push(segments.join('/'));
   };
 
   return (
