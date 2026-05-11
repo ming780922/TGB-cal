@@ -4,32 +4,26 @@ import { useEffect, useState } from 'react';
 
 interface Props {
   timestamp: number;
+  part?: 'date' | 'time';
 }
 
-/**
- * Renders a Unix timestamp in the user's local time zone.
- * Uses a Client Component to avoid hydration mismatches between server and browser timezones.
- */
-export default function LocalDate({ timestamp }: Props) {
-  const [formatted, setFormatted] = useState<string>('');
+export default function LocalDate({ timestamp, part }: Props) {
+  const [date, setDate] = useState<string>('');
+  const [time, setTime] = useState<string>('');
 
   useEffect(() => {
-    const date = new Date(timestamp * 1000);
-    
-    // Format: YYYY/MM/DD HH:mm (consistent style, local time)
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    
-    setFormatted(`${y}/${m}/${d} ${hh}:${mm}`);
+    const d = new Date(timestamp * 1000);
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    setDate(`${m}/${day}`);
+    setTime(`${hh}:${mm}`);
   }, [timestamp]);
 
-  if (!formatted) {
-    // Show nothing or a space during hydration to prevent jumpy layout
-    return <span aria-hidden="true">&nbsp;</span>;
-  }
+  if (!date) return <span aria-hidden="true">&nbsp;</span>;
 
-  return <span>{formatted}</span>;
+  if (part === 'date') return <span>{date}</span>;
+  if (part === 'time') return <span>{time}</span>;
+  return <span>{date} {time}</span>;
 }

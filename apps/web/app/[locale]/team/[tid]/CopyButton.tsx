@@ -23,12 +23,20 @@ export default function CopyButton({ url, label, copiedLabel }: CopyButtonProps)
       document.body.removeChild(input);
     }
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <button onClick={handleCopy} type="button">
-      {copied ? copiedLabel : label}
-    </button>
+    <div className="flex items-center gap-2 mt-2">
+      <span className="flex-1 font-mono text-[10px] text-[#9ba3b4] truncate">{url}</span>
+      <button
+        onClick={handleCopy}
+        type="button"
+        className="font-mono text-[10px] font-semibold shrink-0 transition-colors"
+        style={{ color: copied ? '#3b6dff' : '#5b6478' }}
+      >
+        {copied ? `✓ ${copiedLabel}` : label.toUpperCase()}
+      </button>
+    </div>
   );
 }

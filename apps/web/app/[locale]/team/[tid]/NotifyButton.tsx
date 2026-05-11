@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Bell, BellOff } from 'lucide-react';
 
 interface NotifyButtonProps {
   tid: number;
@@ -79,13 +80,9 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
     setLoading(true);
     setError(null);
     try {
-      if (subscribed) {
-        await handleUnsubscribe();
-      } else {
-        await handleSubscribe();
-      }
+      if (subscribed) await handleUnsubscribe();
+      else await handleSubscribe();
     } catch (err) {
-      console.error('Push subscription error:', err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
@@ -94,10 +91,29 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
 
   return (
     <div>
-      <button onClick={handleClick} disabled={loading} type="button">
-        {loading ? '...' : subscribed ? activeLabel : label}
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        type="button"
+        className="w-full flex items-center justify-center gap-2 py-[11px] px-4 rounded-[12px] font-medium text-[13px] bg-[rgba(255,255,255,0.85)] border border-[rgba(13,20,38,0.08)] text-[#0d1426] disabled:opacity-60 transition-opacity"
+      >
+        {loading ? (
+          <span className="font-mono text-[11px] text-[#9ba3b4]">···</span>
+        ) : subscribed ? (
+          <>
+            <BellOff size={15} className="text-[#5b6478]" />
+            {activeLabel}
+          </>
+        ) : (
+          <>
+            <Bell size={15} className="text-[#3b6dff]" />
+            {label}
+          </>
+        )}
       </button>
-      {error && <p style={{ color: 'red', fontSize: '0.8em' }}>{error}</p>}
+      {error && (
+        <p className="mt-1 font-mono text-[10px] text-[#f43f5e]">{error}</p>
+      )}
     </div>
   );
 }
