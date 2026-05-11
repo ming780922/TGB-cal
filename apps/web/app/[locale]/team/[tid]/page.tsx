@@ -3,6 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { notFound } from 'next/navigation';
 import CopyButton from './CopyButton';
 import LocalDate from './LocalDate';
+import NotifyButton from './NotifyButton';
 
 interface Props {
   params: { locale: string; tid: string };
@@ -197,6 +198,11 @@ export default async function TeamPage({ params }: Props) {
             {t('addToGoogle')}
           </a>
           <CopyButton url={icalUrl} label={t('copyLink')} copiedLabel={t('copied')} />
+          <NotifyButton
+            tid={Number(tid)}
+            label={t('notifyMe')}
+            activeLabel={t('notifyActive')}
+          />
         </div>
       </section>
 
