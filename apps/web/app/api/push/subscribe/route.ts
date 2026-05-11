@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
   let body: SubscribeBody;
   try {
     body = await request.json();
-    if (!body.id || !body.tid || !body.endpoint || !body.p256dh || !body.auth) {
+    if (!body.id || typeof body.tid !== 'number' || body.tid <= 0 || !body.endpoint || !body.p256dh || !body.auth) {
       throw new Error('missing fields');
     }
   } catch {
@@ -25,35 +25,45 @@ export async function POST(request: Request): Promise<Response> {
 
   const { env } = getRequestContext() as { env: Env };
 
-  const existing = await env.DB.prepare(
-    'SELECT id FROM push_subscriptions WHERE endpoint = ? AND tid = ?'
-  ).bind(body.endpoint, body.tid).first<{ id: string }>();
+  try {
+    const existing = await env.DB.prepare(
+      'SELECT id FROM push_subscriptions WHERE endpoint = ? AND tid = ?'
+    ).bind(body.endpoint, body.tid).first<{ id: string }>();
 
-  if (existing) {
-    return Response.json({ ok: true }, { status: 200 });
+    if (existing) {
+      return Response.json({ ok: true }, { status: 200 });
+    }
+
+    await env.DB.prepare(
+      'INSERT INTO push_subscriptions (id, tid, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(body.id, body.tid, body.endpoint, body.p256dh, body.auth, Math.floor(Date.now() / 1000)).run();
+
+    return Response.json({ ok: true }, { status: 201 });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: 'Database error', detail }, { status: 500 });
   }
-
-  await env.DB.prepare(
-    'INSERT INTO push_subscriptions (id, tid, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-  ).bind(body.id, body.tid, body.endpoint, body.p256dh, body.auth, Math.floor(Date.now() / 1000)).run();
-
-  return Response.json({ ok: true }, { status: 201 });
 }
 
 export async function DELETE(request: Request): Promise<Response> {
   let body: { tid: number; endpoint: string };
   try {
     body = await request.json();
-    if (!body.tid || !body.endpoint) throw new Error('missing fields');
+    if (typeof body.tid !== 'number' || body.tid <= 0 || !body.endpoint) throw new Error('missing fields');
   } catch {
     return Response.json({ error: 'Invalid body' }, { status: 400 });
   }
 
   const { env } = getRequestContext() as { env: Env };
 
-  await env.DB.prepare(
-    'DELETE FROM push_subscriptions WHERE endpoint = ? AND tid = ?'
-  ).bind(body.endpoint, body.tid).run();
+  try {
+    await env.DB.prepare(
+      'DELETE FROM push_subscriptions WHERE endpoint = ? AND tid = ?'
+    ).bind(body.endpoint, body.tid).run();
 
-  return new Response(null, { status: 204 });
+    return new Response(null, { status: 204 });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: 'Database error', detail }, { status: 500 });
+  }
 }

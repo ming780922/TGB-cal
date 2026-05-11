@@ -16,15 +16,22 @@ export async function handleListSubscriptions(request: Request, env: Env): Promi
     return json({ subscriptions: [] }, 200);
   }
 
-  const placeholders = tids.map(() => '?').join(',');
-  const rows = await env.DB.prepare(
-    `SELECT ps.tid, ps.endpoint, ps.p256dh, ps.auth, t.name AS team_name
-     FROM push_subscriptions ps
-     JOIN teams t ON t.tid = ps.tid
-     WHERE ps.tid IN (${placeholders})`
-  ).bind(...tids).all<{ tid: number; endpoint: string; p256dh: string; auth: string; team_name: string }>();
+  const cappedTids = tids.slice(0, 100); // D1 bind() has a 100-parameter limit
+  const placeholders = cappedTids.map(() => '?').join(',');
 
-  return json({ subscriptions: rows.results }, 200);
+  try {
+    const rows = await env.DB.prepare(
+      `SELECT ps.tid, ps.endpoint, ps.p256dh, ps.auth, t.name AS team_name
+       FROM push_subscriptions ps
+       JOIN teams t ON t.tid = ps.tid
+       WHERE ps.tid IN (${placeholders})`
+    ).bind(...cappedTids).all<{ tid: number; endpoint: string; p256dh: string; auth: string; team_name: string }>();
+
+    return json({ subscriptions: rows.results }, 200);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return json({ error: 'Database error', detail }, 500);
+  }
 }
 
 function json(body: unknown, status: number): Response {
