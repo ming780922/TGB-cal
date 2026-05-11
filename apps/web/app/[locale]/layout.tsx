@@ -2,7 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
-const locales = ['zh', 'en'];
+const locales = ['zh-Hant', 'en'];
 
 interface Props {
   children: React.ReactNode;
@@ -19,8 +19,8 @@ export default async function LocaleLayout({ children, params: { locale } }: Pro
           <header>
             <a href={`/${locale}`}>TGB iCal</a>
             <nav>
-              <a href={locale === 'zh' ? '/en' : '/zh'}>
-                {locale === 'zh' ? 'EN' : '中文'}
+              <a href={locale === 'zh-Hant' ? '/en' : '/zh-Hant'}>
+                {locale === 'zh-Hant' ? 'EN' : '中文'}
               </a>
             </nav>
           </header>
