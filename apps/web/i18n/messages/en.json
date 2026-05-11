@@ -1,37 +1,40 @@
 {
   "home": {
-    "title": "TGB Basketball League Schedule Subscription",
-    "searchPlaceholder": "Search team name...",
-    "noResults": "No teams found",
-    "hotTeams": "Popular Teams"
+    "brandChip": "TGB · CALENDAR",
+    "taglineA": "Subscribe and sync",
+    "taglineB": "every game",
+    "subHero": "One-tap into Apple Calendar or Google Calendar — schedules update automatically.",
+    "searchPlaceholder": "Search teams",
+    "noResults": "No teams match \"{q}\"",
+    "popularHeader": "Popular teams"
   },
   "team": {
-    "subscribeSection": "Subscribe to Schedule",
-    "addToApple": "Add to Apple Calendar",
-    "addToGoogle": "Add to Google Calendar",
-    "copyLink": "Copy Link",
-    "copied": "Copied!",
-    "notifyMe": "🔔 Notify me",
-    "notifyActive": "🔔 Notifications on",
-    "activeSeasons": "Seasons",
-    "pastSeason": "Last Season",
-    "ended": "Ended",
-    "wins": "W",
-    "losses": "L",
-    "rank": "Rank",
-    "scheduledGames": "Scheduled Games",
-    "nextGame": "Next Game",
-    "completedGames": "Completed",
-    "noSchedule": "No scheduled games"
+    "back": "Back",
+    "share": "Share",
+    "active": "Active",
+    "win": "Win",
+    "loss": "Loss",
+    "sched": "Sched",
+    "seasons": "Seasons",
+    "scheduledOf": "{s} of {t} scheduled",
+    "nextMatch": "Next match",
+    "vs": "vs",
+    "subscribeHeader": "Subscribe",
+    "apple": "Apple Calendar",
+    "google": "Google Calendar",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "notifyMe": "Notify me",
+    "notifyActive": "Subscribed"
   },
   "nav": {
     "home": "Home",
-    "terms": "Terms of Use",
-    "privacy": "Privacy Policy"
+    "terms": "Terms",
+    "privacy": "Privacy"
   },
   "meta": {
-    "siteTitle": "TGB iCal Subscription",
+    "siteTitle": "TGB iCal",
     "teamPageTitle": "{teamName} Schedule | TGB iCal",
-    "teamPageDescription": "{teamName} TGB Basketball League schedule, currently in {season} {division}. Subscribe via iCal for game notifications."
+    "teamPageDescription": "{teamName} TGB Basketball League schedule. Subscribe via iCal for game notifications."
   }
 }
