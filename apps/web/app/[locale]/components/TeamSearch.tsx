@@ -28,8 +28,8 @@ export function TeamSearch({ locale }: Props) {
 
     const timer = setTimeout(() => {
       fetch(`/api/teams/search?q=${encodeURIComponent(inputValue)}`)
-        .then((res) => res.json() as Promise<{ results: TeamResult[] }>)
-        .then((data) => setResults(data.results))
+        .then((res) => res.json() as Promise<{ results?: TeamResult[] }>)
+        .then((data) => setResults(data.results ?? []))
         .catch(() => setResults([]));
     }, 150);
 
@@ -46,6 +46,7 @@ export function TeamSearch({ locale }: Props) {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={t('searchPlaceholder')}
+          aria-label={t('searchPlaceholder')}
           className="flex-1 bg-transparent py-3 text-[14px] text-[#0d1426] placeholder:text-[#9ba3b4] outline-none font-sans"
         />
         <span className="font-mono text-[10px] text-[#9ba3b4] bg-[rgba(13,20,38,0.05)] px-1.5 py-0.5 rounded shrink-0">
