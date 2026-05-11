@@ -2,9 +2,13 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
 
-type Env = {
-  DB: D1Database;
-};
+type Env = { DB: D1Database };
+
+interface TeamRow {
+  tid: number;
+  name: string;
+  league_name: string | null;
+}
 
 export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
@@ -17,17 +21,20 @@ export async function GET(request: Request): Promise<Response> {
   const { env } = getRequestContext() as { env: Env };
   const db = env.DB;
 
-  // DEBUG: Check if we are connected to the right DB
-  const countResult = await db.prepare('SELECT COUNT(*) as count FROM teams').first<{ count: number }>();
-  console.log(`[api/teams/search] Total teams in DB: ${countResult?.count}`);
+  const leagueSubquery = `(
+    SELECT l.name FROM team_divisions td
+    JOIN leagues l ON l.gid = td.gid
+    WHERE td.tid = t.tid
+    ORDER BY td.updated_at DESC LIMIT 1
+  ) as league_name`;
 
   try {
-    let rows: { tid: number; name: string }[];
+    let rows: TeamRow[];
 
     if (q.length >= 2) {
       const result = await db
         .prepare(
-          `SELECT t.tid, t.name
+          `SELECT t.tid, t.name, ${leagueSubquery}
            FROM teams t
            JOIN teams_fts f ON f.rowid = t.tid
            WHERE teams_fts MATCH ?
@@ -35,24 +42,30 @@ export async function GET(request: Request): Promise<Response> {
            LIMIT 20`
         )
         .bind(q + '*')
-        .all<{ tid: number; name: string }>();
+        .all<TeamRow>();
       rows = result.results;
     } else {
       const result = await db
         .prepare(
-          `SELECT tid, name
-           FROM teams
-           WHERE name LIKE ?
+          `SELECT t.tid, t.name, ${leagueSubquery}
+           FROM teams t
+           WHERE t.name LIKE ?
            LIMIT 20`
         )
         .bind('%' + q + '%')
-        .all<{ tid: number; name: string }>();
+        .all<TeamRow>();
       rows = result.results;
     }
 
-    return Response.json({ results: rows });
+    return Response.json({
+      results: rows.map(r => ({
+        tid: r.tid,
+        name: r.name,
+        leagueName: r.league_name ?? '',
+      })),
+    });
   } catch (err) {
-    console.error('[api/teams/search] Search error:', err);
+    console.error('[api/teams/search] error:', err);
     return Response.json({ results: [] }, { status: 500 });
   }
 }
