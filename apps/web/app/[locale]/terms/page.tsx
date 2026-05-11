@@ -40,7 +40,7 @@ export default function TermsPage({ params: { locale } }: Props) {
         href={`/${locale}`}
         className="font-mono text-[11px] text-[#5b6478] mb-5 inline-block"
       >
-        ← {backLabel}
+        <span aria-hidden="true">← </span>{backLabel}
       </Link>
 
       <h1 className="text-[24px] font-bold text-[#0d1426] mb-1">{title}</h1>
@@ -50,7 +50,7 @@ export default function TermsPage({ params: { locale } }: Props) {
         {body.map(([heading, paragraph]) => (
           <GlassCard key={heading} className="px-4 py-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="w-1 h-4 rounded-full bg-[#3b6dff] shrink-0" />
+              <span className="w-1 h-4 rounded-full bg-[#3b6dff] shrink-0" aria-hidden="true" />
               <h2 className="text-[14px] font-semibold text-[#0d1426]">{heading}</h2>
             </div>
             <p className="text-[13px] text-[#5b6478] leading-[1.6]">{paragraph}</p>
