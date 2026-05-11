@@ -23,6 +23,7 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if ('PushManager' in window && 'serviceWorker' in navigator) {
@@ -76,6 +77,7 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
 
   const handleClick = async () => {
     setLoading(true);
+    setError(null);
     try {
       if (subscribed) {
         await handleUnsubscribe();
@@ -84,14 +86,18 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
       }
     } catch (err) {
       console.error('Push subscription error:', err);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button onClick={handleClick} disabled={loading} type="button">
-      {subscribed ? activeLabel : label}
-    </button>
+    <div>
+      <button onClick={handleClick} disabled={loading} type="button">
+        {loading ? '...' : subscribed ? activeLabel : label}
+      </button>
+      {error && <p style={{ color: 'red', fontSize: '0.8em' }}>{error}</p>}
+    </div>
   );
 }
