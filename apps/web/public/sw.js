@@ -1,5 +1,12 @@
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = {};
+    }
+  }
   const title = data.title || 'TGB 賽程通知';
   const options = {
     body: data.body || '',
