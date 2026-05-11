@@ -1,6 +1,7 @@
 import { scrapeHomepage } from './homepage.js';
 import { scrapeDivision } from './division.js';
 import { upsertMetadata, upsertDivisionData } from './api-client.js';
+import { sendNotifications } from './notify.js';
 
 const REQUEST_DELAY_MS = 1000;
 
@@ -19,6 +20,7 @@ async function main() {
 
   let successCount = 0;
   let errorCount = 0;
+  const allChangedEvents = [];
 
   try {
     const divisions = await scrapeHomepage();
@@ -47,7 +49,10 @@ async function main() {
         const result = await upsertDivisionData(data.teams, data.team_divisions, data.games);
         
         console.log(`  - Done: teams=${JSON.stringify(result.counts.teams_inserted + result.counts.teams_updated)}, games=${JSON.stringify(result.counts.games_inserted + result.counts.games_updated)}`);
-        
+
+        if (Array.isArray(result.changed)) {
+          allChangedEvents.push(...result.changed);
+        }
         successCount++;
       } catch (err) {
         console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
@@ -65,6 +70,13 @@ async function main() {
     console.log(`- Successfully Processed: ${successCount}`);
     console.log(`- Failed: ${errorCount}`);
     console.log('='.repeat(50));
+
+    if (allChangedEvents.length > 0) {
+      console.log(`\n[scraper] ${allChangedEvents.length} change event(s) detected — sending push notifications...`);
+      await sendNotifications(allChangedEvents);
+    } else {
+      console.log('\n[scraper] No game changes — skipping push notifications.');
+    }
   } catch (err) {
     console.error('[scraper] Fatal error during crawl:', err);
     process.exit(1);
