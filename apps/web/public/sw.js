@@ -1,0 +1,16 @@
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || 'TGB 賽程通知';
+  const options = {
+    body: data.body || '',
+    data: data.data || {},
+    icon: '/favicon.ico',
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || 'https://tgb.ming060.com';
+  event.waitUntil(clients.openWindow(url));
+});
