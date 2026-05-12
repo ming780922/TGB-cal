@@ -6,6 +6,6 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "tgb-calendar"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "6f50f43e-7174-42a1-b5ed-b19e26a08cef"
 migrations_dir = "../../db/migrations"
 
