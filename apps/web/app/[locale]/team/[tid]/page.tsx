@@ -147,7 +147,7 @@ export default async function TeamPage({ params }: Props) {
             aria-hidden="true"
           />
           <span className="font-mono text-[10px] text-[#5b6478] tracking-[1.5px]">
-            {t('active').toUpperCase()} · {tid.toUpperCase()}
+            {t('active').toUpperCase()}
           </span>
         </div>
 
