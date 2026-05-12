@@ -99,7 +99,7 @@ export default async function TeamPage({ params }: Props) {
       JOIN divisions d ON d.level_id = td.level_id
       JOIN leagues l ON l.gid = d.gid
       WHERE td.tid = ?
-      ORDER BY d.updated_at DESC
+      ORDER BY (SELECT MAX(g.scheduled_at) FROM games g WHERE g.level_id = d.level_id AND (g.home_tid = td.tid OR g.away_tid = td.tid)) DESC
     `).bind(now, Number(tid)).all<DivisionRow>();
     teamDivisions = divResult.results ?? [];
 
