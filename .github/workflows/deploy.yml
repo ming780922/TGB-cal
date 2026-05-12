@@ -42,7 +42,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - name: Build Next.js for Cloudflare Pages
-        run: pnpm run build
+        run: pnpm run pages:build
         working-directory: apps/web
         env:
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
