@@ -186,123 +186,107 @@ export default async function TeamPage({ params }: Props) {
         </GlassCard>
       </div>
 
-      {/* Season cards */}
-      {teamDivisions.length > 0 && (
-        <div className="px-5 pt-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="font-mono text-[10px] text-[#5b6478] tracking-[1.5px] uppercase">
-              {t('seasons')} · {String(teamDivisions.length).padStart(2, '0')}
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {teamDivisions.map((div) => {
-              const divGames = allGames.filter((g) => g.level_id === div.level_id);
-              const displayTitle = div.name || div.league_name;
-              const tidNum = Number(tid);
-
-              return (
-                <div key={div.level_id} className="relative">
-                  <GlassCard className="pl-4 pr-4 py-4 relative overflow-hidden">
-                    {/* Left accent bar */}
-                    <div
-                      className="absolute left-0 top-0 bottom-0 w-[3px]"
-                      style={{ background: 'linear-gradient(to bottom, #3b6dff, #7a4dff)' }}
-                      aria-hidden="true"
-                    />
-
-                    <div className="flex items-start justify-between gap-2 ml-1">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[14px] font-semibold text-[#0d1426] truncate">
-                          {div.league_name}
-                        </div>
-                        {displayTitle !== div.league_name && (
-                          <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
-                            {displayTitle}
-                          </div>
-                        )}
-                      </div>
-
-                      <span
-                        className="font-mono text-[11px] font-semibold text-white px-[9px] py-[3px] rounded-[6px] whitespace-nowrap shrink-0"
-                        style={{
-                          background: 'linear-gradient(135deg, #3b6dff, #7a4dff)',
-                          boxShadow: '0 4px 10px rgba(59,109,255,0.3)',
-                        }}
-                      >
-                        {div.wins}W · {div.losses}L
-                      </span>
+      {/* Games in latest division */}
+      {latestDiv && (() => {
+        const divGames = allGames.filter((g) => g.level_id === latestDiv.level_id);
+        const tidNum = Number(tid);
+        return (
+          <div className="px-5 pt-5">
+            <GlassCard className="relative overflow-hidden">
+              {/* Left accent bar */}
+              <div
+                className="absolute left-0 top-0 bottom-0 w-[3px]"
+                style={{ background: 'linear-gradient(to bottom, #3b6dff, #7a4dff)' }}
+                aria-hidden="true"
+              />
+              <div className="pl-4 pr-4 pt-4 pb-2 flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[#0d1426] truncate">
+                    {latestDiv.league_name}
+                  </div>
+                  {latestDiv.name && latestDiv.name !== latestDiv.league_name && (
+                    <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
+                      {latestDiv.name}
                     </div>
-
-                    {divGames.length > 0 && (
-                      <div className="mt-3 ml-1 flex flex-col gap-1.5">
-                        {divGames.map((game) => {
-                          const isHome = game.home_tid === tidNum;
-                          const opponent = isHome ? game.away_name : game.home_name;
-                          const myScore = isHome ? game.home_score : game.away_score;
-                          const oppScore = isHome ? game.away_score : game.home_score;
-                          const isCompleted = game.status === 'completed';
-                          const didWin = isCompleted && myScore !== null && oppScore !== null && myScore > oppScore;
-                          const didLose = isCompleted && myScore !== null && oppScore !== null && myScore < oppScore;
-
-                          return (
-                            <div
-                              key={game.game_id}
-                              className="flex items-center gap-2 px-[10px] py-[8px] rounded-[10px]"
-                              style={{ background: 'rgba(13,20,38,0.03)' }}
-                            >
-                              <div className="shrink-0 w-[38px]">
-                                <div className="font-mono text-[11px] font-semibold text-[#3b6dff]">
-                                  <LocalDate timestamp={game.scheduled_at} part="date" />
-                                </div>
-                                <div className="font-mono text-[9px] text-[#9ba3b4]">
-                                  <LocalDate timestamp={game.scheduled_at} part="time" />
-                                </div>
-                              </div>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="text-[12px] text-[#0d1426] truncate">
-                                  {t('vs')} {opponent}
-                                </div>
-                                {game.venue && (
-                                  <div className="font-mono text-[9px] text-[#9ba3b4] truncate">
-                                    {game.venue}
-                                  </div>
-                                )}
-                              </div>
-
-                              {isCompleted && myScore !== null && oppScore !== null ? (
-                                <div className="shrink-0 text-right">
-                                  <span
-                                    className="font-mono text-[12px] font-bold"
-                                    style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#5b6478' }}
-                                  >
-                                    {myScore} – {oppScore}
-                                  </span>
-                                  <div
-                                    className="font-mono text-[9px] tracking-[1px]"
-                                    style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#9ba3b4' }}
-                                  >
-                                    {didWin ? 'W' : didLose ? 'L' : 'D'}
-                                  </div>
-                                </div>
-                              ) : !isCompleted ? (
-                                <span className="font-mono text-[9px] text-[#9ba3b4] shrink-0 tracking-[1px]">
-                                  SCH
-                                </span>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </GlassCard>
+                  )}
                 </div>
-              );
-            })}
+                <span
+                  className="font-mono text-[11px] font-semibold text-white px-[9px] py-[3px] rounded-[6px] whitespace-nowrap shrink-0"
+                  style={{
+                    background: 'linear-gradient(135deg, #3b6dff, #7a4dff)',
+                    boxShadow: '0 4px 10px rgba(59,109,255,0.3)',
+                  }}
+                >
+                  {latestDiv.wins}W · {latestDiv.losses}L
+                </span>
+              </div>
+
+              {divGames.length > 0 && (
+                <div className="px-3 pb-3 flex flex-col gap-1">
+                  {divGames.map((game) => {
+                    const isHome = game.home_tid === tidNum;
+                    const opponent = isHome ? game.away_name : game.home_name;
+                    const myScore = isHome ? game.home_score : game.away_score;
+                    const oppScore = isHome ? game.away_score : game.home_score;
+                    const isCompleted = game.status === 'completed';
+                    const didWin = isCompleted && myScore !== null && oppScore !== null && myScore > oppScore;
+                    const didLose = isCompleted && myScore !== null && oppScore !== null && myScore < oppScore;
+
+                    return (
+                      <div
+                        key={game.game_id}
+                        className="flex items-center gap-2 px-[10px] py-[8px] rounded-[10px]"
+                        style={{ background: 'rgba(13,20,38,0.03)' }}
+                      >
+                        <div className="shrink-0 w-[38px]">
+                          <div className="font-mono text-[11px] font-semibold text-[#3b6dff]">
+                            <LocalDate timestamp={game.scheduled_at} part="date" />
+                          </div>
+                          <div className="font-mono text-[9px] text-[#9ba3b4]">
+                            <LocalDate timestamp={game.scheduled_at} part="time" />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] text-[#0d1426] truncate">
+                            {t('vs')} {opponent}
+                          </div>
+                          {game.venue && (
+                            <div className="font-mono text-[9px] text-[#9ba3b4] truncate">
+                              {game.venue}
+                            </div>
+                          )}
+                        </div>
+
+                        {isCompleted && myScore !== null && oppScore !== null ? (
+                          <div className="shrink-0 text-right">
+                            <span
+                              className="font-mono text-[12px] font-bold"
+                              style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#5b6478' }}
+                            >
+                              {myScore} – {oppScore}
+                            </span>
+                            <div
+                              className="font-mono text-[9px] tracking-[1px]"
+                              style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#9ba3b4' }}
+                            >
+                              {didWin ? 'W' : didLose ? 'L' : 'D'}
+                            </div>
+                          </div>
+                        ) : !isCompleted ? (
+                          <span className="font-mono text-[9px] text-[#9ba3b4] shrink-0 tracking-[1px]">
+                            SCH
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </GlassCard>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Subscribe footer — sticky */}
       <div
