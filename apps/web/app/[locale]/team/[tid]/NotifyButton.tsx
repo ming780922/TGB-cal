@@ -27,10 +27,21 @@ export default function NotifyButton({ tid, label, activeLabel }: NotifyButtonPr
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if ('PushManager' in window && 'serviceWorker' in navigator) {
-      setSupported(true);
-      setSubscribed(localStorage.getItem(storageKey(tid)) === 'true');
-    }
+    if (!('PushManager' in window) || !('serviceWorker' in navigator)) return;
+    setSupported(true);
+    navigator.serviceWorker.getRegistration('/sw.js').then(async (reg) => {
+      if (!reg) {
+        localStorage.removeItem(storageKey(tid));
+        return;
+      }
+      const pushSub = await reg.pushManager.getSubscription();
+      if (!pushSub) {
+        localStorage.removeItem(storageKey(tid));
+        setSubscribed(false);
+      } else {
+        setSubscribed(localStorage.getItem(storageKey(tid)) === 'true');
+      }
+    });
   }, [tid]);
 
   if (!supported) return null;
