@@ -123,11 +123,11 @@ export default async function TeamPage({ params }: Props) {
   const webcalUrl = `webcal://tgb.ming060.com/ical/${tid}.ics`;
   const googleCalUrl = `https://calendar.google.com/calendar/r/settings/addbyurl?url=${encodeURIComponent(icalUrl)}`;
 
-  const totalWins = teamDivisions.reduce((s, d) => s + d.wins, 0);
-  const totalLosses = teamDivisions.reduce((s, d) => s + d.losses, 0);
-  const totalScheduled = teamDivisions.reduce((s, d) => s + d.scheduled_count, 0);
-
   const latestDiv = teamDivisions[0];
+
+  const totalWins = latestDiv?.wins ?? 0;
+  const totalLosses = latestDiv?.losses ?? 0;
+  const totalScheduled = latestDiv?.scheduled_count ?? 0;
 
   return (
     <div className="pb-[140px]">
