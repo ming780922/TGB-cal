@@ -191,99 +191,77 @@ export default async function TeamPage({ params }: Props) {
         const divGames = allGames.filter((g) => g.level_id === latestDiv.level_id);
         const tidNum = Number(tid);
         return (
-          <div className="px-5 pt-5">
-            <GlassCard className="relative overflow-hidden">
-              {/* Left accent bar */}
-              <div
-                className="absolute left-0 top-0 bottom-0 w-[3px]"
-                style={{ background: 'linear-gradient(to bottom, #3b6dff, #7a4dff)' }}
-                aria-hidden="true"
-              />
-              <div className="pl-4 pr-4 pt-4 pb-2 flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold text-[#0d1426] truncate">
-                    {latestDiv.league_name}
-                  </div>
-                  {latestDiv.name && latestDiv.name !== latestDiv.league_name && (
-                    <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
-                      {latestDiv.name}
-                    </div>
-                  )}
-                </div>
-                <span
-                  className="font-mono text-[11px] font-semibold text-white px-[9px] py-[3px] rounded-[6px] whitespace-nowrap shrink-0"
-                  style={{
-                    background: 'linear-gradient(135deg, #3b6dff, #7a4dff)',
-                    boxShadow: '0 4px 10px rgba(59,109,255,0.3)',
-                  }}
-                >
-                  {latestDiv.wins}W · {latestDiv.losses}L
-                </span>
-              </div>
+          <div className="px-5 pt-5 flex flex-col gap-2">
+            {divGames.map((game) => {
+              const isCompleted = game.status === 'completed';
+              const myScore = game.home_tid === tidNum ? game.home_score : game.away_score;
+              const oppScore = game.home_tid === tidNum ? game.away_score : game.home_score;
+              const didWin = isCompleted && myScore !== null && oppScore !== null && myScore > oppScore;
+              const didLose = isCompleted && myScore !== null && oppScore !== null && myScore < oppScore;
 
-              {divGames.length > 0 && (
-                <div className="px-3 pb-3 flex flex-col gap-1">
-                  {divGames.map((game) => {
-                    const isHome = game.home_tid === tidNum;
-                    const opponent = isHome ? game.away_name : game.home_name;
-                    const myScore = isHome ? game.home_score : game.away_score;
-                    const oppScore = isHome ? game.away_score : game.home_score;
-                    const isCompleted = game.status === 'completed';
-                    const didWin = isCompleted && myScore !== null && oppScore !== null && myScore > oppScore;
-                    const didLose = isCompleted && myScore !== null && oppScore !== null && myScore < oppScore;
-
-                    return (
-                      <div
-                        key={game.game_id}
-                        className="flex items-center gap-2 px-[10px] py-[8px] rounded-[10px]"
-                        style={{ background: 'rgba(13,20,38,0.03)' }}
-                      >
-                        <div className="shrink-0 w-[38px]">
-                          <div className="font-mono text-[11px] font-semibold text-[#3b6dff]">
-                            <LocalDate timestamp={game.scheduled_at} part="date" />
-                          </div>
-                          <div className="font-mono text-[9px] text-[#9ba3b4]">
-                            <LocalDate timestamp={game.scheduled_at} part="time" />
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[12px] text-[#0d1426] truncate">
-                            {t('vs')} {opponent}
-                          </div>
-                          {game.venue && (
-                            <div className="font-mono text-[9px] text-[#9ba3b4] truncate">
-                              {game.venue}
-                            </div>
-                          )}
-                        </div>
-
-                        {isCompleted && myScore !== null && oppScore !== null ? (
-                          <div className="shrink-0 text-right">
-                            <span
-                              className="font-mono text-[12px] font-bold"
-                              style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#5b6478' }}
-                            >
-                              {myScore} – {oppScore}
-                            </span>
-                            <div
-                              className="font-mono text-[9px] tracking-[1px]"
-                              style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#9ba3b4' }}
-                            >
-                              {didWin ? 'W' : didLose ? 'L' : 'D'}
-                            </div>
-                          </div>
-                        ) : !isCompleted ? (
-                          <span className="font-mono text-[9px] text-[#9ba3b4] shrink-0 tracking-[1px]">
-                            SCH
-                          </span>
-                        ) : null}
+              const card = (
+                <GlassCard className={`px-4 py-3 ${isCompleted ? 'cursor-pointer active:opacity-80' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0">
+                      <div className="font-mono text-[11px] font-semibold text-[#3b6dff]">
+                        <LocalDate timestamp={game.scheduled_at} part="date" />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </GlassCard>
+                      <div className="font-mono text-[9px] text-[#9ba3b4]">
+                        <LocalDate timestamp={game.scheduled_at} part="time" />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium text-[#0d1426] truncate">
+                        {game.home_name}
+                      </div>
+                      <div className="text-[13px] text-[#5b6478] truncate">
+                        {game.away_name}
+                      </div>
+                      {game.venue && (
+                        <div className="font-mono text-[9px] text-[#9ba3b4] truncate mt-0.5">
+                          {game.venue}
+                        </div>
+                      )}
+                    </div>
+
+                    {isCompleted && myScore !== null && oppScore !== null ? (
+                      <div className="shrink-0 text-right">
+                        <div
+                          className="font-mono text-[16px] font-bold leading-none"
+                          style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#5b6478' }}
+                        >
+                          {game.home_score} – {game.away_score}
+                        </div>
+                        <div
+                          className="font-mono text-[9px] tracking-[1px] mt-0.5"
+                          style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#9ba3b4' }}
+                        >
+                          {didWin ? 'WIN' : didLose ? 'LOSS' : 'DRAW'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="font-mono text-[9px] text-[#9ba3b4] shrink-0 tracking-[1px]">
+                        SCH
+                      </span>
+                    )}
+                  </div>
+                </GlassCard>
+              );
+
+              return isCompleted ? (
+                <a
+                  key={game.game_id}
+                  href={`https://tgbleague.com/event.php?eid=${game.game_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {card}
+                </a>
+              ) : (
+                <div key={game.game_id}>{card}</div>
+              );
+            })}
           </div>
         );
       })()}
