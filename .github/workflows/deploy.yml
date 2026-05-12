@@ -52,5 +52,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           workingDirectory: apps/web
-          command: pages deploy .vercel/output/static --project-name=tgb-calendar
+          command: pages deploy .vercel/output/static --project-name=tgb-cal
           wranglerVersion: '4.0.0'
