@@ -71,7 +71,7 @@ export async function handleIcalRequest(
     `SELECT g.game_id, g.level_id, g.home_tid, g.away_tid,
        ht.name as home_name, at.name as away_name,
        g.scheduled_at, g.venue,
-       g.home_score, g.away_score, g.status, gs.ical_sequence, gs.ical_uid, g.updated_at,
+       g.home_score, g.away_score, g.video_url, g.status, gs.ical_sequence, gs.ical_uid, g.updated_at,
        d.gid, l.name as league_name, d.name     FROM games g
      LEFT JOIN teams ht ON g.home_tid = ht.tid
      LEFT JOIN teams at ON g.away_tid = at.tid

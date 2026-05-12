@@ -125,7 +125,7 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
     let awayScore = scoreParas[1] !== '-' ? parseInt(scoreParas[1]) : null;
     const status = (homeScore !== null && awayScore !== null) ? 'completed' : 'scheduled';
 
-    // Record cell (5): Game ID (eid)
+    // Record cell (5): Game ID (eid) and optional YouTube URL
     const gameLink = $(cells[5]).find('a[href*="eid="]').first();
     let gameId = gameLink.length
       ? parseInt(gameLink.attr('href')?.match(/eid=(\d+)/)?.[1])
@@ -133,7 +133,10 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
 
     if (!gameId) return;
 
-    console.log(`  - Game: [${gameId}] ${dateStr} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}`);
+    const videoLink = $(cells[5]).find('a[href*="youtu"]').first();
+    const videoUrl = videoLink.length ? videoLink.attr('href') : null;
+
+    console.log(`  - Game: [${gameId}] ${dateStr} | ${homeName} ${homeScore ?? ''} vs ${awayScore ?? ''} ${awayName} @ ${venue || 'Unknown'}${videoUrl ? ` 🎬 ${videoUrl}` : ''}`);
     games.push({
       game_id: gameId,
       level_id: parseInt(levelId),
@@ -144,6 +147,7 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
       home_score: homeScore,
       away_score: awayScore,
       status,
+      video_url: videoUrl,
     });
   });
 

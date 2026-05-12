@@ -5,12 +5,13 @@ const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT;
 
-const EVENT_PRIORITY = ['game_completed', 'new_game', 'game_rescheduled'];
+const EVENT_PRIORITY = ['game_completed', 'video_url_added', 'new_game', 'game_rescheduled'];
 
 const EVENT_BODY = {
   new_game: '新比賽已排定',
   game_completed: '比賽結果出爐',
   game_rescheduled: '比賽時間/地點更動',
+  video_url_added: '比賽錄影已上傳',
 };
 
 export async function sendNotifications(changedEvents) {
@@ -48,10 +49,14 @@ export async function sendNotifications(changedEvents) {
       events[0];
     if (!topEvent) continue;
 
+    const notifUrl = topEvent.event_type === 'video_url_added' && topEvent.video_url
+      ? topEvent.video_url
+      : `https://tgb.ming060.com/zh-Hant/team/${sub.tid}`;
+
     const payload = JSON.stringify({
       title: `${sub.team_name} 有消息`,
       body: EVENT_BODY[topEvent.event_type] ?? topEvent.event_type,
-      data: { url: `https://tgb.ming060.com/zh-Hant/team/${sub.tid}` },
+      data: { url: notifUrl },
     });
 
     try {

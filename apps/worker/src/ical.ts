@@ -11,6 +11,7 @@ export interface GameRow {
   venue: string | null;
   home_score: number | null;
   away_score: number | null;
+  video_url: string | null;
   status: string;
   ical_sequence: number;
   ical_uid: string;
@@ -126,7 +127,9 @@ export function generateIcal(team: TeamInfo, games: GameRow[]): string {
 
     const divisionLine = [game.league_name, game.name].filter(Boolean).join(' ');
     const tgbUrl = `https://tgbleague.com/division.php?gid=${game.gid}&level_id=${game.level_id}`;
-    const description = `${escapeText(divisionLine)}\\n${tgbUrl}`;
+    const description = game.video_url
+      ? `${escapeText(divisionLine)}\\n${tgbUrl}\\n▶ ${game.video_url}`
+      : `${escapeText(divisionLine)}\\n${tgbUrl}`;
 
     add('BEGIN:VEVENT');
     add(`UID:${uid}`);
