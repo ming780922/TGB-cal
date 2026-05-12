@@ -121,7 +121,7 @@ export default async function TeamPage({ params }: Props) {
 
   const icalUrl = `https://tgb.ming060.com/ical/${tid}.ics`;
   const webcalUrl = `webcal://tgb.ming060.com/ical/${tid}.ics`;
-  const googleCalUrl = `https://calendar.google.com/calendar/r/settings/addbyurl?url=${encodeURIComponent(icalUrl)}`;
+  const googleCalUrl = `https://calendar.google.com/calendar/r?cid=${webcalUrl}`;
 
   const latestDiv = teamDivisions[0];
 
