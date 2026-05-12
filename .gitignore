@@ -1,27 +1,25 @@
-# Worktrees
-.worktrees/
-
-# Node.js
+# Dependencies
 node_modules/
-dist/
-build/
+
+# Build outputs
 .next/
-*.log
+.vercel/
+*.tsbuildinfo
+
+# Wrangler
+.wrangler/
+
+# Design handoff (reference files, not source)
+design_handoff_tgb_calendar/
+
+# Scraper scratch files
+packages/scraper/*.html
+packages/scraper/*.php
+
+# Env
 .env
 .env.local
 .env*.local
 
-# Cloudflare
-.wrangler/
-.dev.vars
-
 # OS
 .DS_Store
-Thumbs.db
-
-# Editor
-.vscode/
-.idea/
-*.swp
-*.tmp
-apps/web/.vercel/
