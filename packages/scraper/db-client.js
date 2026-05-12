@@ -24,7 +24,8 @@ function esc(v) {
 }
 
 export function queryD1(sql) {
-  const out = wrangler(`--command ${JSON.stringify(sql)} --json`);
+  const flat = sql.replace(/\s+/g, ' ').trim();
+  const out = wrangler(`--command ${JSON.stringify(flat)} --json`);
   return JSON.parse(out)[0]?.results ?? [];
 }
 
