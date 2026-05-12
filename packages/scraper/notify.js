@@ -51,7 +51,7 @@ export async function sendNotifications(changedEvents) {
     const payload = JSON.stringify({
       title: `${sub.team_name} 有消息`,
       body: EVENT_BODY[topEvent.event_type] ?? topEvent.event_type,
-      data: { url: `https://tgb.ming060.com/zh/team/${sub.tid}` },
+      data: { url: `https://tgb.ming060.com/zh-Hant/team/${sub.tid}` },
     });
 
     try {
