@@ -1,6 +1,6 @@
 import { scrapeHomepage } from './homepage.js';
 import { scrapeDivision } from './division.js';
-import { upsertMetadata, upsertDivisionData } from './api-client.js';
+import { upsertMetadata, upsertDivisionData } from './db-client.js';
 import { sendNotifications } from './notify.js';
 
 const REQUEST_DELAY_MS = 1000;
@@ -34,7 +34,7 @@ async function main() {
     const divisionsArray = divisions.map(d => ({ level_id: d.level_id, gid: d.gid, name: d.division_name }));
     
     console.log(`[scraper] Upserting ${leaguesArray.length} leagues and ${divisionsArray.length} divisions...`);
-    await upsertMetadata(leaguesArray, divisionsArray);
+    upsertMetadata(leaguesArray, divisionsArray);
 
     // 2. Process Per Division
     for (let i = 0; i < divisions.length; i++) {
@@ -46,7 +46,7 @@ async function main() {
         
         console.log(`  - Sending ${data.teams.length} teams, ${data.team_divisions.length} standings, and ${data.games.length} games...`);
         
-        const result = await upsertDivisionData(data.teams, data.team_divisions, data.games);
+        const result = upsertDivisionData(data.teams, data.team_divisions, data.games);
         
         console.log(`  - Done: teams=${JSON.stringify(result.counts.teams_inserted + result.counts.teams_updated)}, games=${JSON.stringify(result.counts.games_inserted + result.counts.games_updated)}`);
 
