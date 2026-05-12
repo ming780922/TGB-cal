@@ -77,11 +77,11 @@ export async function handleIcalRequest(
      LEFT JOIN teams at ON g.away_tid = at.tid
      JOIN divisions d ON g.level_id = d.level_id
      JOIN leagues l ON d.gid = l.gid
-     JOIN team_divisions td ON td.tid = ? AND td.level_id = g.level_id
      JOIN game_sync gs ON g.game_id = gs.game_id
+     WHERE (g.home_tid = ? OR g.away_tid = ?)
      ORDER BY g.scheduled_at ASC`,
   )
-    .bind(tid)
+    .bind(tid, tid)
     .all<GameRow>();
 
   // 8. Generate iCal content

@@ -124,7 +124,7 @@ Mono 10px, rendered in layout (appears on every page):
 ### Hero Header (`padding: 20px 20px 0`)
 - Status chip: `#3b6dff` glowing dot (box-shadow: 0 0 6px #3b6dff) + mono `ACTIVE · {TID}`
 - `<h1>`: team name, 30px, 700, letter-spacing -0.5
-- Meta: primary league name + `跨 {N} 個聯盟 / Across {N} leagues`
+- Meta: `{teamDivisions[0].league_name} · {teamDivisions[0].name}` (most recent division, sorted by `updated_at DESC`)
 
 ### Stat Strip
 `GlassCard`, 3 equal columns separated by 1px `rgba(13,20,38,0.08)` lines:
@@ -138,9 +138,8 @@ Each `teamDivision` → `GlassCard` with:
 - Left-edge 3px accent bar: `linear-gradient(to bottom, #3b6dff, #7a4dff)`
 - League name + division name + `已排 X 場 / X scheduled` meta
 - Record badge: gradient bg, white mono text `{wins}W · {losses}L`
-- Next-match panel (`rgba(59,109,255,.06)` tint, radius 10): date (mono, blue, 14px) + time (mono, muted, 10px) + `vs {opponent}` + venue
-- **Active** (`scheduled_count > 0`): full color
-- **Past** (`scheduled_count === 0`): `filter: saturate(0.2) opacity(0.7)`, `已結束 / Ended` chip instead of badge
+- Next-match panel (`rgba(59,109,255,.06)` tint, radius 10): date (mono, blue, 14px) + time (mono, muted, 10px) + `vs {opponent}` + venue. Omitted if no upcoming games.
+- All season cards rendered identically regardless of scheduled game count
 
 ### Subscribe Footer
 `position: sticky; bottom: 0`, glass strip, `padding: 16px`:
@@ -148,7 +147,8 @@ Each `teamDivision` → `GlassCard` with:
 - `grid grid-cols-2 gap-2`:
   - Apple Calendar: gradient bg, white text, `shadow-btn-primary`, `href={webcalUrl}`
   - Google Calendar: translucent white, 1px border, ink text, `href={googleCalUrl}`
-- Below: mono ICS URL + `CopyButton` toggling `COPY → ✓ 已複製` for 1500ms
+- Below buttons: `NotifyButton` (existing component, restyled) — full-width, ghost style (translucent white, 1px border), lucide `Bell` icon + `通知我 / Notify me`. Toggles to lucide `BellOff` icon + `已訂閱 / Subscribed` when active.
+- Below that: mono ICS URL + `CopyButton` toggling `COPY → ✓ 已複製` for 1500ms
 
 ### Completed Games
 Data query kept but section not rendered (not in the design).
@@ -203,7 +203,8 @@ apps/web/
   app/[locale]/components/
     HotTeams.tsx                  UPDATED (glass design, league, color)
     TeamSearch.tsx                UPDATED (glass design, debounce 150ms)
-  app/[locale]/team/[tid]/page.tsx UPDATED (stat strip, season cards, subscribe footer)
+  app/[locale]/team/[tid]/page.tsx           UPDATED (stat strip, season cards, subscribe footer)
+  app/[locale]/team/[tid]/NotifyButton.tsx   UPDATED (restyled to glass design)
   app/[locale]/privacy/page.tsx   UPDATED (full content)
   app/[locale]/terms/page.tsx     UPDATED (full content)
   app/api/teams/search/route.ts   UPDATED (league JOIN, color)

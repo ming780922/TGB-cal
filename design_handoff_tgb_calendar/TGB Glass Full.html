@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>TGB Calendar — Glass</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #eef1f7; min-height: 100vh; }
+  body {
+    font-family: "Inter","Noto Sans TC", -apple-system, system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px 0;
+  }
+  * { box-sizing: border-box; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+// ==== TGB · Glass Tech full prototype ====
+
+const T = {
+  zh: {
+    // brand
+    brand: 'TGB · 行事曆',
+    tagline_a: '訂閱賽程,',
+    tagline_b: '同步到行事曆',
+    sub_hero: '一鍵連動 Apple、Google,自動隨賽季更新。',
+    // search / nav
+    search_ph: '搜尋球隊',
+    no_match: (q) => `找不到「${q}」相符的球隊`,
+    popular: '熱門球隊',
+    members: (n) => `${n} 人`,
+    back: '返回',
+    share: '分享',
+    // team
+    active: '進行中',
+    multi_league: '跨聯盟',
+    season_count: (n) => `跨 ${n} 個聯盟`,
+    win: '勝',
+    loss: '負',
+    sched: '已排',
+    active_seasons: '進行中賽季',
+    past_season: '上一賽季',
+    ended: '已結束',
+    next_match: '下一場',
+    scheduled_of: (s, t) => `已排 ${s} / ${t}`,
+    // subscribe
+    subscribe: '訂閱賽程',
+    apple: 'Apple 行事曆',
+    google: 'Google 日曆',
+    copy: '複製連結',
+    copied: '已複製',
+    sub_help: '訂閱後,新賽程會自動同步到你的行事曆。',
+    // footer
+    privacy: '隱私權',
+    terms: '使用條款',
+    lang_label: '語言',
+    // privacy
+    privacy_title: '隱私權政策',
+    privacy_updated: '最後更新:2026 年 5 月 1 日',
+    privacy_body: [
+      ['我們收集的資料', 'TGB 行事曆只儲存球隊、聯盟與賽程等公開資訊。我們不會在沒有你同意的情況下儲存個人識別資料。'],
+      ['訂閱機制', '當你訂閱球隊賽程時,我們提供一個 .ics 連結。你的行事曆 App 會定期向 tgb.ming060.com 拉取最新資料,我們會記錄基本的存取紀錄(IP、時間)以維持服務品質。'],
+      ['Cookies', '我們僅使用功能性 Cookies(例如語言偏好設定),不使用追蹤或廣告 Cookies。'],
+      ['資料分享', '我們不會向第三方販售或分享你的資料。'],
+      ['聯絡我們', '若有任何隱私權相關問題,請聯絡 privacy@tgb.ming060.com。'],
+    ],
+    // terms
+    terms_title: '使用條款',
+    terms_updated: '最後更新:2026 年 5 月 1 日',
+    terms_body: [
+      ['服務範圍', 'TGB 行事曆提供球隊賽程查詢與訂閱服務。所有賽程資訊由各聯盟主辦方提供,我們盡力確保正確,但不保證完全無誤。'],
+      ['使用規範', '請勿利用本服務進行任何違法、騷擾或破壞性的行為。我們保留隨時暫停服務的權利。'],
+      ['訂閱連結', '訂閱用的 .ics 連結為公開連結。請自行斟酌分享對象。'],
+      ['免責聲明', '比賽時間、地點等資訊可能臨時調整,請以聯盟官方公告為準。'],
+      ['條款變更', '我們可能不定期更新本條款,變更後將在此頁公告。持續使用即視為同意新條款。'],
+    ],
+    close: '關閉',
+  },
+  en: {
+    brand: 'TGB · Calendar',
+    tagline_a: 'Subscribe and sync',
+    tagline_b: 'every game',
+    sub_hero: 'One-tap into Apple Calendar or Google Calendar — schedules update automatically.',
+    search_ph: 'Search teams',
+    no_match: (q) => `No teams match "${q}"`,
+    popular: 'Popular teams',
+    members: (n) => `${n} members`,
+    back: 'Back',
+    share: 'Share',
+    active: 'Active',
+    multi_league: 'Multi-league',
+    season_count: (n) => `Across ${n} leagues`,
+    win: 'Win',
+    loss: 'Loss',
+    sched: 'Sched',
+    active_seasons: 'Active Seasons',
+    past_season: 'Last Season',
+    ended: 'Ended',
+    next_match: 'Next match',
+    scheduled_of: (s, t) => `${s} of ${t} scheduled`,
+    subscribe: 'Subscribe',
+    apple: 'Apple Calendar',
+    google: 'Google Calendar',
+    copy: 'Copy link',
+    copied: 'Copied',
+    sub_help: 'New games will auto-sync to your calendar after subscribing.',
+    privacy: 'Privacy',
+    terms: 'Terms',
+    lang_label: 'Language',
+    privacy_title: 'Privacy Policy',
+    privacy_updated: 'Last updated: May 1, 2026',
+    privacy_body: [
+      ['What we collect', 'TGB Calendar stores only public information about teams, leagues, and schedules. We do not store personal data without consent.'],
+      ['Subscription mechanics', 'When you subscribe, we provide a .ics URL. Your calendar app periodically fetches updates from tgb.ming060.com — we keep basic access logs (IP, timestamp) to ensure service quality.'],
+      ['Cookies', 'We only use functional cookies (e.g. language preference). No tracking or advertising cookies.'],
+      ['Data sharing', 'We do not sell or share your data with third parties.'],
+      ['Contact', 'For privacy questions, please contact privacy@tgb.ming060.com.'],
+    ],
+    terms_title: 'Terms of Use',
+    terms_updated: 'Last updated: May 1, 2026',
+    terms_body: [
+      ['Scope', 'TGB Calendar provides team schedule lookup and subscription. Schedule data is supplied by leagues; we strive for accuracy but make no warranty.'],
+      ['Acceptable use', 'Do not use the service for unlawful, harassing, or disruptive activity. We may suspend service at any time.'],
+      ['Subscription URLs', '.ics URLs are public links. Share at your own discretion.'],
+      ['Disclaimer', 'Game times and venues may change. The league\'s official announcement prevails.'],
+      ['Changes', 'We may update these terms occasionally. Continued use constitutes acceptance.'],
+    ],
+    close: 'Close',
+  },
+};
+
+const TEAMS_ZH = [
+  { tid: 'flyhawks',  name: '台北飛鷹', enName: 'Taipei Flyhawks',  league: 'TSBL 城市籃球聯盟', enLeague: 'TSBL City Basketball', members: 14, color: '#1f3b8a' },
+  { tid: 'thunders',  name: '高雄雷霆', enName: 'Kaohsiung Thunders',league: 'SBL 南區甲組',       enLeague: 'SBL South A',          members: 12, color: '#c0392b' },
+  { tid: 'tigers',    name: '台中猛虎', enName: 'Taichung Tigers',  league: '中部企業排球聯賽',   enLeague: 'Central Volleyball',   members: 16, color: '#e67e22' },
+  { tid: 'dolphins',  name: '新北海豚', enName: 'New Taipei Dolphins',league: '北區羽球聯誼賽',   enLeague: 'North Badminton',      members: 8,  color: '#16a085' },
+  { tid: 'mountains', name: '南投山林', enName: 'Nantou Mountains', league: '中部足球甲級',       enLeague: 'Central Soccer',       members: 18, color: '#27ae60' },
+  { tid: 'metro',     name: '桃園都會', enName: 'Taoyuan Metro',    league: 'TSBL 城市籃球聯盟',  enLeague: 'TSBL City Basketball', members: 13, color: '#7d3c98' },
+];
+
+const TEAM = {
+  tid: 'flyhawks', name: '台北飛鷹', enName: 'Taipei Flyhawks',
+  season: '2026 春季賽', enSeason: '2026 Spring',
+  isMultiLeague: true,
+  scheduled: 12, total: 18,
+  record: { wins: 7, losses: 2 },
+  seasons: [
+    { league: 'TSBL 城市籃球聯盟', enLeague: 'TSBL City Basketball', group: 'A 組', enGroup: 'Group A', record: '7–2', scheduled: 9, total: 12, next: { date: '5/12', day: '週二', enDay: 'Tue', time: '19:30', opponent: '高雄雷霆', enOpp: 'Kaohsiung Thunders', venue: '台北體育館 3F', enVenue: 'Taipei Arena 3F' } },
+    { league: '北區企業盃 8 人籃球', enLeague: 'North Corporate 8s',  group: '預賽 B 組', enGroup: 'Prelim B', record: '3–0', scheduled: 3, total: 6, next: { date: '5/18', day: '週一', enDay: 'Mon', time: '20:00', opponent: '桃園都會', enOpp: 'Taoyuan Metro', venue: '林口體育館', enVenue: 'Linkou Arena' } },
+  ],
+  pastSeason: { league: '2025 冬季 TSBL', enLeague: '2025 Winter TSBL', group: 'A 組', enGroup: 'Group A', record: '11–4', place: '季軍', enPlace: '3rd place' },
+  icalUrl: 'https://tgb.ming060.com/ical/flyhawks.ics',
+  webcalUrl: 'webcal://tgb.ming060.com/ical/flyhawks.ics',
+  googleUrl: 'https://calendar.google.com/calendar/r/settings/addbyurl?url=https%3A%2F%2Ftgb.ming060.com%2Fical%2Fflyhawks.ics',
+};
+
+// ===== styles =====
+const C = {
+  font: '"Inter","Noto Sans TC", -apple-system, system-ui, sans-serif',
+  mono: '"JetBrains Mono", ui-monospace, monospace',
+  bg: '#eef1f7',
+  ink: '#0d1426',
+  muted: '#5b6478',
+  faint: '#9ba3b4',
+  line: 'rgba(13,20,38,0.08)',
+  glassBg: 'rgba(255,255,255,0.65)',
+  glassBorder: 'rgba(255,255,255,0.9)',
+  blue: '#3b6dff',
+  violet: '#7a4dff',
+};
+const glass = {
+  background: C.glassBg, border: `1px solid ${C.glassBorder}`,
+  borderRadius: 16, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+  boxShadow: '0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 24px rgba(13,20,38,0.06)',
+};
+const grad = `linear-gradient(135deg, ${C.blue}, ${C.violet})`;
+
+function Frame({ children, w=400, h=720 }) {
+  return (
+    <div style={{ width: w, height: h, color: C.ink, fontFamily: C.font, position: 'relative', overflow: 'hidden', background: C.bg, borderRadius: 28, boxShadow: '0 30px 80px rgba(13,20,38,.18), 0 6px 18px rgba(13,20,38,.08)' }}>
+      {/* halos */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: -80, right: -60, width: 260, height: 260, borderRadius: 999, background: 'radial-gradient(circle, rgba(122,77,255,.38), transparent 70%)' }}/>
+        <div style={{ position: 'absolute', top: 220, left: -80, width: 260, height: 260, borderRadius: 999, background: 'radial-gradient(circle, rgba(59,109,255,.32), transparent 70%)' }}/>
+        <div style={{ position: 'absolute', bottom: -110, right: -60, width: 260, height: 260, borderRadius: 999, background: 'radial-gradient(circle, rgba(59,109,255,.22), transparent 70%)' }}/>
+      </div>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%' }}>{children}</div>
+    </div>
+  );
+}
+
+// language-aware bits
+function teamName(t, lang) { return lang === 'en' ? t.enName : t.name; }
+function teamLeague(t, lang) { return lang === 'en' ? t.enLeague : t.league; }
+
+// ===== components =====
+function TopBar({ lang, setLang, onPrivacy, onTerms, leftSlot }) {
+  return (
+    <div style={{ padding: '14px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: C.mono, fontSize: 11, color: C.muted }}>
+      <div>{leftSlot}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')} style={{
+          ...glass, borderRadius: 999, padding: '4px 10px', fontFamily: C.mono, fontSize: 10, color: C.ink,
+          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600,
+        }}>
+          <span style={{ color: lang==='zh' ? C.blue : C.faint }}>中</span>
+          <span style={{ color: C.faint }}>·</span>
+          <span style={{ color: lang==='en' ? C.blue : C.faint }}>EN</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Footer({ lang, onPrivacy, onTerms }) {
+  const t = T[lang];
+  return (
+    <div style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: C.mono, fontSize: 10, color: C.faint }}>
+      <span>v1.0 · tgb.ming060.com</span>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button onClick={onPrivacy} style={linkBtn}>{t.privacy}</button>
+        <button onClick={onTerms} style={linkBtn}>{t.terms}</button>
+      </div>
+    </div>
+  );
+}
+const linkBtn = { background: 'transparent', border: 0, color: C.muted, fontFamily: C.mono, fontSize: 10, cursor: 'pointer', padding: 0, textDecoration: 'underline', textUnderlineOffset: 2 };
+
+function Modal({ title, updated, body, onClose, lang }) {
+  const t = T[lang];
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(13,20,38,.35)', backdropFilter: 'blur(4px)' }}/>
+      <div style={{ ...glass, position: 'relative', width: '100%', maxHeight: '88%', borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,.92)' }}>
+        <div style={{ padding: '16px 20px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${C.line}` }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.3 }}>{title}</div>
+            <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, marginTop: 2 }}>{updated}</div>
+          </div>
+          <button onClick={onClose} style={{ ...glass, borderRadius: 999, width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.ink, fontSize: 14, padding: 0 }}>×</button>
+        </div>
+        <div style={{ padding: '14px 20px 20px', overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: C.ink }}>
+          {body.map(([h, p], i) => (
+            <div key={i} style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: C.ink, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 4, height: 4, borderRadius: 99, background: C.blue }}/>
+                {h}
+              </div>
+              <div style={{ color: C.muted }}>{p}</div>
+            </div>
+          ))}
+          <button onClick={onClose} style={{ width: '100%', marginTop: 6, padding: '11px 12px', borderRadius: 12, border: 0, background: grad, color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer', boxShadow: `0 6px 18px rgba(59,109,255,.32)` }}>{t.close}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== Home =====
+function Home({ lang, setLang, onOpenTeam, onPrivacy, onTerms }) {
+  const t = T[lang];
+  const [q, setQ] = React.useState('');
+  const results = React.useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    return TEAMS_ZH.filter(x =>
+      x.name.toLowerCase().includes(s) || x.enName.toLowerCase().includes(s) ||
+      x.league.toLowerCase().includes(s) || x.enLeague.toLowerCase().includes(s) ||
+      x.tid.includes(s)
+    ).slice(0,6);
+  }, [q]);
+
+  return (
+    <Frame>
+      <TopBar lang={lang} setLang={setLang} leftSlot={<span>9:41</span>}/>
+      <div style={{ padding: '24px 20px 0' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', ...glass, borderRadius: 999, fontSize: 11, color: C.muted, fontFamily: C.mono, fontWeight: 600 }}>
+          <span style={{ width: 5, height: 5, borderRadius: 99, background: C.blue }}/>
+          {t.brand}
+        </div>
+        <h1 style={{ margin: '14px 0 0', fontSize: 32, fontWeight: 700, lineHeight: 1.1, letterSpacing: -1 }}>
+          {t.tagline_a}<br/>
+          <span style={{ background: grad, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{t.tagline_b}</span>
+        </h1>
+        <p style={{ marginTop: 10, fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{t.sub_hero}</p>
+      </div>
+
+      <div style={{ padding: '18px 20px 0' }}>
+        <div style={{
+          ...glass, borderRadius: 14, display: 'flex', alignItems: 'center', padding: '0 14px',
+          boxShadow: q ? `0 1px 0 rgba(255,255,255,.8) inset, 0 8px 24px rgba(13,20,38,.08), 0 0 0 3px rgba(59,109,255,.18)` : glass.boxShadow,
+          transition: 'box-shadow .18s',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={q ? C.blue : C.muted} strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.search_ph}
+            style={{ flex: 1, border: 0, outline: 0, background: 'transparent', padding: '12px 12px', fontSize: 14, fontFamily: C.font, color: C.ink }}/>
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.faint, padding: '2px 6px', background: 'rgba(13,20,38,.05)', borderRadius: 4 }}>⌘K</span>
+        </div>
+        {q && (
+          <div style={{ marginTop: 8, ...glass, overflow: 'hidden' }}>
+            {results.length === 0 && <div style={{ padding: 14, fontSize: 13, color: C.muted }}>{t.no_match(q)}</div>}
+            {results.map((x, i) => (
+              <div key={x.tid} onClick={() => onOpenTeam(x.tid)}
+                style={{ padding: '11px 14px', borderTop: i ? `1px solid ${C.line}` : 0, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <span style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg, ${x.color}, ${x.color}dd)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, boxShadow: `0 4px 10px ${x.color}33` }}>{(lang==='en'?x.enName:x.name)[0]}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{teamName(x, lang)}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontFamily: C.mono }}>{teamLeague(x, lang)}</div>
+                </div>
+                <span style={{ color: C.blue, fontSize: 14 }}>→</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {!q && (
+        <div style={{ padding: '22px 20px 0', flex: 1, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: 1.5 }}>{t.popular.toUpperCase()}</span>
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.faint }}>{TEAMS_ZH.length.toString().padStart(2,'0')}</span>
+          </div>
+          <div style={{ ...glass, overflow: 'hidden' }}>
+            {TEAMS_ZH.slice(0,5).map((x, i) => (
+              <div key={x.tid} onClick={() => onOpenTeam(x.tid)}
+                style={{ padding: '11px 14px', borderTop: i ? `1px solid ${C.line}` : 0, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <span style={{ fontFamily: C.mono, fontSize: 11, color: C.faint, width: 18 }}>{(i+1).toString().padStart(2,'0')}</span>
+                <span style={{ width: 28, height: 28, borderRadius: 9, background: `linear-gradient(135deg, ${x.color}, ${x.color}dd)`, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, boxShadow: `0 3px 8px ${x.color}33` }}>{(lang==='en'?x.enName:x.name)[0]}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{teamName(x, lang)}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 1, fontFamily: C.mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLeague(x, lang)}</div>
+                </div>
+                <span style={{ fontFamily: C.mono, fontSize: 10, color: C.faint }}>{t.members(x.members)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <Footer lang={lang} onPrivacy={onPrivacy} onTerms={onTerms}/>
+    </Frame>
+  );
+}
+
+// ===== Team =====
+function Team({ lang, setLang, onBack, onPrivacy, onTerms }) {
+  const t = T[lang];
+  const team = TEAM;
+  const [copied, setCopied] = React.useState(false);
+  const copyLink = () => {
+    try { navigator.clipboard?.writeText(team.icalUrl); } catch (e) {}
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <Frame>
+      <TopBar lang={lang} setLang={setLang} leftSlot={
+        <button onClick={onBack} style={{ background: 'transparent', border: 0, color: C.muted, fontFamily: C.mono, fontSize: 11, cursor: 'pointer', padding: 0 }}>← {t.back}</button>
+      }/>
+      <div style={{ padding: '18px 20px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: 1 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 99, background: C.blue, boxShadow: `0 0 6px ${C.blue}` }}/>
+          {t.active.toUpperCase()} · {team.tid.toUpperCase()}
+        </div>
+        <h1 style={{ margin: '6px 0 0', fontSize: 28, fontWeight: 700, letterSpacing: -0.6 }}>{lang==='en'?team.enName:team.name}</h1>
+        <div style={{ marginTop: 4, fontSize: 12, color: C.muted }}>{lang==='en'?team.enSeason:team.season} · {t.season_count(team.seasons.length)}</div>
+
+        <div style={{ marginTop: 14, ...glass, borderRadius: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+          {[
+            { l: t.win, v: team.record.wins, c: C.blue },
+            { l: t.loss, v: team.record.losses, c: C.ink },
+            { l: t.sched, v: `${team.scheduled}/${team.total}`, c: C.violet },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: '12px 14px', borderLeft: i ? `1px solid ${C.line}` : 0 }}>
+              <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>{s.l}</div>
+              <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: s.c, marginTop: 4, lineHeight: 1 }}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '16px 20px 0', flex: 1, overflowY: 'auto' }}>
+        <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: 1.5, marginBottom: 8, textTransform: 'uppercase' }}>{t.active_seasons} · {team.seasons.length.toString().padStart(2,'0')}</div>
+        {team.seasons.map((s, i) => (
+          <div key={i} style={{ ...glass, padding: 14, marginBottom: 10, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 3, background: grad }}/>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{lang==='en'?s.enLeague:s.league}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{lang==='en'?s.enGroup:s.group} · {t.scheduled_of(s.scheduled, s.total)}</div>
+              </div>
+              <span style={{ background: grad, color: '#fff', padding: '3px 9px', borderRadius: 6, fontFamily: C.mono, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', boxShadow: `0 4px 10px rgba(59,109,255,.3)` }}>{s.record}</span>
+            </div>
+            <div style={{ marginTop: 10, padding: 10, background: 'rgba(59,109,255,.06)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontFamily: C.mono, color: C.blue, fontWeight: 700 }}>
+                <div style={{ fontSize: 13, lineHeight: 1 }}>{s.next.date}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>{s.next.time}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+                <div style={{ fontFamily: C.mono, fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: 'uppercase' }}>{t.next_match}</div>
+                <div style={{ fontWeight: 600 }}>vs {lang==='en'?s.next.enOpp:s.next.opponent}</div>
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 1 }}>{lang==='en'?s.next.enVenue:s.next.venue}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: 16, ...glass, borderRadius: 0, borderLeft: 0, borderRight: 0, borderBottom: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>{t.subscribe}</span>
+          <span style={{ fontSize: 10, color: C.faint }}>{t.sub_help}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <a href={team.webcalUrl} style={{ ...btn, background: grad, color: '#fff', boxShadow: `0 6px 18px rgba(59,109,255,.35)` }}> {t.apple}</a>
+          <a href={team.googleUrl} style={{ ...btn, background: 'rgba(255,255,255,.85)', color: C.ink, border: `1px solid ${C.line}` }}> {t.google}</a>
+        </div>
+        <button onClick={copyLink} style={{
+          marginTop: 8, width: '100%', background: 'transparent', color: C.muted,
+          padding: '9px 12px', border: `1px solid ${C.line}`, borderRadius: 10,
+          fontSize: 11, fontFamily: C.mono, cursor: 'pointer',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.icalUrl.replace('https://','')}</span>
+          <span style={{ color: copied ? C.blue : C.muted, fontWeight: 600, marginLeft: 8 }}>{copied ? '✓ '+t.copied : t.copy.toUpperCase()}</span>
+        </button>
+      </div>
+      <Footer lang={lang} onPrivacy={onPrivacy} onTerms={onTerms}/>
+    </Frame>
+  );
+}
+
+const btn = { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 12px', borderRadius: 12, fontWeight: 600, fontSize: 13, textDecoration: 'none', textAlign: 'center', fontFamily: C.font };
+
+// ===== App with two screens shown side-by-side =====
+function App() {
+  const [lang, setLang] = React.useState('zh');
+  const [modal, setModal] = React.useState(null); // 'privacy' | 'terms' | null
+  const [view, setView] = React.useState('home'); // 'home' | 'team'
+  const t = T[lang];
+
+  const openTeam = () => setView('team');
+  const back = () => setView('home');
+
+  return (
+    <div style={{ display: 'flex', gap: 32, padding: 32, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <span style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, letterSpacing: 1.5 }}>HOME · {lang === 'en' ? 'Home' : '首頁'}</span>
+        <div style={{ position: 'relative' }}>
+          <Home lang={lang} setLang={setLang}
+            onOpenTeam={openTeam}
+            onPrivacy={() => setModal('privacy')}
+            onTerms={() => setModal('terms')}/>
+          {modal && view === 'home' && (
+            <Modal lang={lang}
+              title={modal==='privacy' ? t.privacy_title : t.terms_title}
+              updated={modal==='privacy' ? t.privacy_updated : t.terms_updated}
+              body={modal==='privacy' ? t.privacy_body : t.terms_body}
+              onClose={() => setModal(null)}/>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <span style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, letterSpacing: 1.5 }}>TEAM · {lang === 'en' ? 'Team page' : '球隊頁'}</span>
+        <div style={{ position: 'relative' }}>
+          <Team lang={lang} setLang={setLang}
+            onBack={back}
+            onPrivacy={() => setModal('privacy')}
+            onTerms={() => setModal('terms')}/>
+          {modal && view === 'team' && (
+            <Modal lang={lang}
+              title={modal==='privacy' ? t.privacy_title : t.terms_title}
+              updated={modal==='privacy' ? t.privacy_updated : t.terms_updated}
+              body={modal==='privacy' ? t.privacy_body : t.terms_body}
+              onClose={() => setModal(null)}/>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
