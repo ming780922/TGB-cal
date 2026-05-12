@@ -5,6 +5,6 @@ pages_build_output_dir = ".vercel/output/static"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "tgb-calendar"
-database_id = "6f50f43e-7174-42a1-b5ed-b19e26a08cef"
+database_name = "tgb-cal"
+database_id = "c70655ae-45cc-4052-9213-e567a4ab53d0"
 migrations_dir = "../../db/migrations"
