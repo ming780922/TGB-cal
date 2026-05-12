@@ -23,8 +23,9 @@ interface DivisionRow {
   total_count: number;
 }
 
-interface UpcomingGameRow {
+interface GameRow {
   game_id: number;
+  level_id: number;
   scheduled_at: number;
   venue: string;
   status: string;
@@ -32,7 +33,8 @@ interface UpcomingGameRow {
   away_tid: number;
   home_name: string;
   away_name: string;
-  level_id?: number;
+  home_score: number | null;
+  away_score: number | null;
 }
 
 export const runtime = 'edge';
@@ -75,7 +77,7 @@ export default async function TeamPage({ params }: Props) {
   if (!team) notFound();
 
   let teamDivisions: DivisionRow[] = [];
-  let upcomingGames: UpcomingGameRow[] = [];
+  let allGames: GameRow[] = [];
 
   try {
     const { env } = getRequestContext();
@@ -101,18 +103,18 @@ export default async function TeamPage({ params }: Props) {
     `).bind(now, Number(tid)).all<DivisionRow>();
     teamDivisions = divResult.results ?? [];
 
-    const upcomingResult = await env.DB.prepare(`
+    const gamesResult = await env.DB.prepare(`
       SELECT g.game_id, g.level_id, g.scheduled_at, g.venue, g.status,
              g.home_tid, g.away_tid,
+             g.home_score, g.away_score,
              ht.name as home_name, away_t.name as away_name
       FROM games g
       JOIN teams ht ON ht.tid = g.home_tid
       JOIN teams away_t ON away_t.tid = g.away_tid
-      WHERE (g.home_tid = ? OR g.away_tid = ?) AND g.status = 'scheduled'
-      ORDER BY g.scheduled_at ASC
-      LIMIT 10
-    `).bind(Number(tid), Number(tid)).all<UpcomingGameRow>();
-    upcomingGames = upcomingResult.results ?? [];
+      WHERE (g.home_tid = ? OR g.away_tid = ?)
+      ORDER BY g.scheduled_at DESC
+    `).bind(Number(tid), Number(tid)).all<GameRow>();
+    allGames = gamesResult.results ?? [];
   } catch {
     // defaults to empty arrays
   }
@@ -195,13 +197,9 @@ export default async function TeamPage({ params }: Props) {
 
           <div className="flex flex-col gap-3">
             {teamDivisions.map((div) => {
-              const nextGame = upcomingGames.find((g) => g.level_id === div.level_id);
-              const opponent = nextGame
-                ? nextGame.home_tid === Number(tid)
-                  ? nextGame.away_name
-                  : nextGame.home_name
-                : null;
+              const divGames = allGames.filter((g) => g.level_id === div.level_id);
               const displayTitle = div.name || div.league_name;
+              const tidNum = Number(tid);
 
               return (
                 <div key={div.level_id} className="relative">
@@ -236,32 +234,66 @@ export default async function TeamPage({ params }: Props) {
                       </span>
                     </div>
 
-                    {nextGame && opponent && (
-                      <div
-                        className="mt-[10px] ml-1 p-[10px] rounded-[10px] flex items-center gap-[10px]"
-                        style={{ background: 'rgba(59,109,255,0.06)' }}
-                      >
-                        <div className="shrink-0">
-                          <div className="font-mono text-[9px] text-[#9ba3b4] tracking-[1px] uppercase mb-0.5">
-                            {t('nextMatch')}
-                          </div>
-                          <div className="font-mono text-[14px] font-semibold text-[#3b6dff]">
-                            <LocalDate timestamp={nextGame.scheduled_at} part="date" />
-                          </div>
-                          <div className="font-mono text-[10px] text-[#9ba3b4]">
-                            <LocalDate timestamp={nextGame.scheduled_at} part="time" />
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#0d1426]">
-                            {t('vs')} {opponent}
-                          </div>
-                          {nextGame.venue && (
-                            <div className="font-mono text-[10px] text-[#5b6478] truncate mt-0.5">
-                              {nextGame.venue}
+                    {divGames.length > 0 && (
+                      <div className="mt-3 ml-1 flex flex-col gap-1.5">
+                        {divGames.map((game) => {
+                          const isHome = game.home_tid === tidNum;
+                          const opponent = isHome ? game.away_name : game.home_name;
+                          const myScore = isHome ? game.home_score : game.away_score;
+                          const oppScore = isHome ? game.away_score : game.home_score;
+                          const isCompleted = game.status === 'completed';
+                          const didWin = isCompleted && myScore !== null && oppScore !== null && myScore > oppScore;
+                          const didLose = isCompleted && myScore !== null && oppScore !== null && myScore < oppScore;
+
+                          return (
+                            <div
+                              key={game.game_id}
+                              className="flex items-center gap-2 px-[10px] py-[8px] rounded-[10px]"
+                              style={{ background: 'rgba(13,20,38,0.03)' }}
+                            >
+                              <div className="shrink-0 w-[38px]">
+                                <div className="font-mono text-[11px] font-semibold text-[#3b6dff]">
+                                  <LocalDate timestamp={game.scheduled_at} part="date" />
+                                </div>
+                                <div className="font-mono text-[9px] text-[#9ba3b4]">
+                                  <LocalDate timestamp={game.scheduled_at} part="time" />
+                                </div>
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[12px] text-[#0d1426] truncate">
+                                  {t('vs')} {opponent}
+                                </div>
+                                {game.venue && (
+                                  <div className="font-mono text-[9px] text-[#9ba3b4] truncate">
+                                    {game.venue}
+                                  </div>
+                                )}
+                              </div>
+
+                              {isCompleted && myScore !== null && oppScore !== null ? (
+                                <div className="shrink-0 text-right">
+                                  <span
+                                    className="font-mono text-[12px] font-bold"
+                                    style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#5b6478' }}
+                                  >
+                                    {myScore} – {oppScore}
+                                  </span>
+                                  <div
+                                    className="font-mono text-[9px] tracking-[1px]"
+                                    style={{ color: didWin ? '#3b6dff' : didLose ? '#f43f5e' : '#9ba3b4' }}
+                                  >
+                                    {didWin ? 'W' : didLose ? 'L' : 'D'}
+                                  </div>
+                                </div>
+                              ) : !isCompleted ? (
+                                <span className="font-mono text-[9px] text-[#9ba3b4] shrink-0 tracking-[1px]">
+                                  SCH
+                                </span>
+                              ) : null}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
                     )}
                   </GlassCard>
