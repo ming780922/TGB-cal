@@ -218,10 +218,11 @@ export default async function TeamPage({ params }: Props) {
                         <div className="text-[14px] font-semibold text-[#0d1426] truncate">
                           {div.league_name}
                         </div>
-                        <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
-                          {displayTitle !== div.league_name ? `${displayTitle} · ` : ''}
-                          {t('scheduledOf', { s: div.scheduled_count, total: div.total_count })}
-                        </div>
+                        {displayTitle !== div.league_name && (
+                          <div className="font-mono text-[11px] text-[#5b6478] mt-0.5">
+                            {displayTitle}
+                          </div>
+                        )}
                       </div>
 
                       <span
