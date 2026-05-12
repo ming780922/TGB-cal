@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+routes = [
+  { pattern = "tgb.ming060.com/ical/*", zone_name = "ming060.com" }
+]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "tgb-cal"
