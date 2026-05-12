@@ -122,7 +122,7 @@ export function generateIcal(team: TeamInfo, games: GameRow[]): string {
 
     const fullAddress = getVenueAddress(game.venue);
     const location = fullAddress
-      ? `${fullAddress} (${game.venue})`
+      ? `${game.venue}, ${fullAddress}`
       : (game.venue ?? '');
 
     const divisionLine = [game.league_name, game.name].filter(Boolean).join(' ');
