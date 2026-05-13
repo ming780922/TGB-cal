@@ -6,6 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 [observability]
 enabled = true
 
+[triggers]
+crons = [
+  "0 19 * * *",  # daily full scrape (Taiwan 03:00)
+  "0 * * * *",   # hourly results scrape
+]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "tgb-cal"

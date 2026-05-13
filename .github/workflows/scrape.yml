@@ -1,8 +1,6 @@
 name: Scrape TGB Schedule
 
 on:
-  schedule:
-    - cron: '0 19 * * *'  # Taiwan time 03:00
   workflow_dispatch:
 
 jobs:

@@ -1,9 +1,42 @@
 export interface Env {
   DB: D1Database;
   SCRAPER_API_KEY: string;
+  GITHUB_TOKEN: string;
+}
+
+const GITHUB_REPO = 'ming780922/TGB-cal';
+
+async function dispatchWorkflow(token: string, workflow: string): Promise<void> {
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'tgb-worker',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`GitHub dispatch failed: ${res.status} ${await res.text()}`);
+  }
 }
 
 export default {
+  async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
+    const workflowMap: Record<string, string> = {
+      '0 19 * * *': 'scrape.yml',
+      '0 * * * *': 'results-scrape.yml',
+    };
+    const workflow = workflowMap[event.cron];
+    if (!workflow) throw new Error(`Unknown cron: ${event.cron}`);
+    await dispatchWorkflow(env.GITHUB_TOKEN, workflow);
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
