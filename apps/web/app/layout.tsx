@@ -2,6 +2,9 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  verification: {
+    google: 'qcWFbHsA1wDPtPGHWF193eU6U0hZW0TnO39mo8WDdf8',
+  },
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
