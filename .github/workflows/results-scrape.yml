@@ -2,6 +2,8 @@ name: Scrape Pending Results
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [results-scrape]  
 
 jobs:
   results:
