@@ -49,9 +49,6 @@ export function TeamSearch({ locale }: Props) {
           aria-label={t('searchPlaceholder')}
           className="flex-1 bg-transparent py-3 text-[14px] text-[#0d1426] placeholder:text-[#9ba3b4] outline-none font-sans"
         />
-        <span className="font-mono text-[10px] text-[#9ba3b4] bg-[rgba(13,20,38,0.05)] px-1.5 py-0.5 rounded shrink-0">
-          ⌘K
-        </span>
       </div>
 
       {/* Results */}
