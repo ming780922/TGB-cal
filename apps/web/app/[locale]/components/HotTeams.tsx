@@ -19,9 +19,6 @@ export async function HotTeams({ teams, locale }: Props) {
         <span className="font-mono text-[10px] text-[#5b6478] tracking-[1.5px] uppercase">
           {t('popularHeader')}
         </span>
-        <span className="font-mono text-[10px] text-[#9ba3b4]">
-          {String(teams.length).padStart(2, '0')}
-        </span>
       </div>
 
       <GlassCard>
