@@ -2,6 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Inter, Noto_Sans_TC, JetBrains_Mono } from 'next/font/google';
+import Script from 'next/script';
 import { Footer } from '@/components/Footer';
 
 const inter = Inter({
@@ -40,6 +41,20 @@ export default async function LocaleLayout({ children, params: { locale } }: Pro
       lang={locale}
       className={`${inter.variable} ${notoSansTC.variable} ${jetbrainsMono.variable}`}
     >
+      <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-9C2L297MN7"
+          strategy="afterInteractive"
+        />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-9C2L297MN7');
+          `}
+        </Script>
+      </head>
       <body className="bg-[#eef1f7] min-h-screen relative overflow-x-hidden font-sans text-[#0d1426]">
         {/* Background halos */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
