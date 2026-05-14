@@ -79,7 +79,7 @@ export function upsertDivisionData(teams, teamDivisions, games) {
   const levelId = games[0].level_id;
   const existingGames = queryD1(
     `SELECT g.game_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid,
-            g.status, g.home_score, g.away_score, s.ical_sequence, s.ical_uid
+            g.status, g.home_score, g.away_score, g.video_url, s.ical_sequence, s.ical_uid
      FROM games g LEFT JOIN game_sync s ON g.game_id = s.game_id
      WHERE g.level_id = ${levelId}`
   );
@@ -148,9 +148,11 @@ export function upsertDivisionData(teams, teamDivisions, games) {
       }
     } else {
       const hasScores = game.home_score != null && game.away_score != null;
+      const videoAdded = existing.video_url == null && game.video_url != null;
+
       if (existing.home_score === null && hasScores) {
         gameStmts.push(
-          `UPDATE games SET home_score=${esc(game.home_score)}, away_score=${esc(game.away_score)}, status=${esc(game.status)}, updated_at=${now}
+          `UPDATE games SET home_score=${esc(game.home_score)}, away_score=${esc(game.away_score)}, status=${esc(game.status)}, video_url=${esc(game.video_url)}, updated_at=${now}
            WHERE game_id=${esc(game.game_id)};`
         );
         gameStmts.push(
@@ -159,6 +161,14 @@ export function upsertDivisionData(teams, teamDivisions, games) {
         counts.games_updated++;
         for (const tid of [game.home_tid, game.away_tid, existing.home_tid, existing.away_tid]) {
           if (tid) changedEvents.push({ tid, event_type: 'game_completed', game_id: game.game_id });
+        }
+      } else if (videoAdded) {
+        gameStmts.push(
+          `UPDATE games SET video_url=${esc(game.video_url)}, updated_at=${now} WHERE game_id=${esc(game.game_id)};`
+        );
+        counts.games_updated++;
+        for (const tid of [game.home_tid, game.away_tid]) {
+          if (tid) changedEvents.push({ tid, event_type: 'video_url_added', game_id: game.game_id, video_url: game.video_url });
         }
       }
     }
@@ -190,7 +200,8 @@ export function queryPendingDivisions() {
      FROM games g
      JOIN divisions d ON g.level_id = d.level_id
      JOIN leagues l ON d.gid = l.gid
-     WHERE g.status != 'completed' AND g.scheduled_at < unixepoch()`
+     WHERE g.scheduled_at < unixepoch()
+       AND (g.status != 'completed' OR g.video_url IS NULL)`
   );
 }
 
