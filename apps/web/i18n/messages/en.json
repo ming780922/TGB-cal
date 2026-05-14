@@ -1,11 +1,13 @@
 {
   "home": {
-    "brandChip": "TGB · CALENDAR",
+    "brandChip": "TGB · SCHEDULE",
     "taglineA": "Subscribe and sync",
     "taglineB": "every game",
     "subHero": "One-tap into Apple Calendar or Google Calendar — schedules update automatically.",
     "searchPlaceholder": "Search teams",
     "noResults": "No teams match \"{q}\"",
+    "recentHeader": "Recently viewed",
+    "recentClear": "Clear",
     "popularHeader": "Popular teams"
   },
   "team": {
@@ -33,8 +35,8 @@
     "privacy": "Privacy"
   },
   "meta": {
-    "siteTitle": "TGB iCal",
-    "teamPageTitle": "{teamName} Schedule | TGB iCal",
+    "siteTitle": "TGB Schedule",
+    "teamPageTitle": "{teamName} Schedule",
     "teamPageDescription": "{teamName} TGB Basketball League schedule. Subscribe via iCal for game notifications."
   }
 }

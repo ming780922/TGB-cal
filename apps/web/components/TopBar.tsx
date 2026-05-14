@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { LangPill } from './LangPill';
-import { ShareButton } from './ShareButton';
 
 interface TopBarHomeProps {
   variant: 'home';
@@ -11,7 +10,6 @@ interface TopBarTeamProps {
   variant: 'team';
   locale: string;
   backLabel: string;
-  shareLabel: string;
 }
 
 type TopBarProps = TopBarHomeProps | TopBarTeamProps;
@@ -31,11 +29,7 @@ export function TopBar(props: TopBarProps) {
         )}
       </div>
       <div>
-        {props.variant === 'home' ? (
-          <LangPill />
-        ) : (
-          <ShareButton label={props.shareLabel} />
-        )}
+        {props.variant === 'home' && <LangPill />}
       </div>
     </div>
   );

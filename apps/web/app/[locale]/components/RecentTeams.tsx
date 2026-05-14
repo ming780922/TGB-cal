@@ -1,24 +1,47 @@
-import { getTranslations } from 'next-intl/server';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/GlassCard';
 import { getTeamColor } from '@/lib/teamColor';
 
-type Props = {
-  teams: Array<{ tid: number; name: string; leagueName: string }>;
-  locale: string;
-};
+const STORAGE_KEY = 'tgb_recent_teams';
 
-export async function HotTeams({ teams, locale }: Props) {
+type RecentTeam = { tid: number; name: string; leagueName: string };
+
+type Props = { locale: string; header: string; clearLabel: string };
+
+export function RecentTeams({ locale, header, clearLabel }: Props) {
+  const [teams, setTeams] = useState<RecentTeam[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setTeams(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function clearHistory() {
+    localStorage.removeItem(STORAGE_KEY);
+    setTeams([]);
+  }
+
   if (teams.length === 0) return null;
-
-  const t = await getTranslations({ locale, namespace: 'home' });
 
   return (
     <section>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center justify-between mb-3">
         <span className="font-mono text-[10px] text-[#5b6478] tracking-[1.5px] uppercase">
-          {t('popularHeader')}
+          {header}
         </span>
+        <button
+          onClick={clearHistory}
+          className="font-mono text-[10px] text-[#9ba3b4] hover:text-[#f43f5e] transition-colors"
+        >
+          {clearLabel}
+        </button>
       </div>
 
       <GlassCard>

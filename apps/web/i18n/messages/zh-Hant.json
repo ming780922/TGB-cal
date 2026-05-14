@@ -1,11 +1,13 @@
 {
   "home": {
-    "brandChip": "TGB · 行事曆",
+    "brandChip": "TGB · 賽程表",
     "taglineA": "訂閱賽程，",
     "taglineB": "同步到行事曆",
     "subHero": "一鍵連動 Apple、Google，自動隨賽季更新。",
     "searchPlaceholder": "搜尋球隊",
     "noResults": "找不到「{q}」相符的球隊",
+    "recentHeader": "最近瀏覽",
+    "recentClear": "清除",
     "popularHeader": "熱門球隊"
   },
   "team": {
@@ -33,8 +35,8 @@
     "privacy": "隱私權"
   },
   "meta": {
-    "siteTitle": "TGB iCal 訂閱",
-    "teamPageTitle": "{teamName} 賽程 | TGB iCal",
-    "teamPageDescription": "{teamName} 的 TGB 籃球聯盟賽程，目前參加 {season} {division}。訂閱 iCal 即時取得比賽通知。"
+    "siteTitle": "TGB 賽程表",
+    "teamPageTitle": "{teamName} 賽程表",
+    "teamPageDescription": "{teamName} 的 TGB 籃球聯盟賽程。訂閱 iCal 即時取得比賽通知。"
   }
 }

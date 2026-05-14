@@ -3,6 +3,7 @@ export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getTranslations } from 'next-intl/server';
 import { HotTeams } from './components/HotTeams';
+import { RecentTeams } from './components/RecentTeams';
 import { TeamSearch } from './components/TeamSearch';
 import { TopBar } from '@/components/TopBar';
 
@@ -57,7 +58,7 @@ export default async function HomePage({ params: { locale } }: Props) {
 
         <h1 className="text-[32px] font-bold leading-[1.1] tracking-[-0.04em] text-[#0d1426] mb-3">
           <span className="block">{t('taglineA')}</span>
-          <span className="block bg-gradient-to-br from-[#3b6dff] to-[#7a4dff] bg-clip-text text-transparent">
+          <span className="block bg-gradient-to-br from-[#3b6dff] to-[#7a4dff] bg-clip-text text-transparent pb-1">
             {t('taglineB')}
           </span>
         </h1>
@@ -68,6 +69,11 @@ export default async function HomePage({ params: { locale } }: Props) {
       {/* Search */}
       <div className="px-5 pt-5">
         <TeamSearch locale={locale} />
+      </div>
+
+      {/* Recent teams */}
+      <div className="px-5 pt-6">
+        <RecentTeams locale={locale} header={t('recentHeader')} clearLabel={t('recentClear')} />
       </div>
 
       {/* Popular teams */}

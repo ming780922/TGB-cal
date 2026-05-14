@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import CopyButton from './CopyButton';
 import LocalDate from './LocalDate';
 import NotifyButton from './NotifyButton';
+import { TeamHistoryTracker } from './TeamHistoryTracker';
 import { TopBar } from '@/components/TopBar';
 import { GlassCard } from '@/components/GlassCard';
 
@@ -53,7 +54,10 @@ export async function generateMetadata({ params }: Props) {
       .bind(tid)
       .first<{ name: string }>();
     if (!team?.name) return { title: t('siteTitle') };
-    return { title: t('teamPageTitle', { teamName: team.name }) };
+    return {
+      title: t('teamPageTitle', { teamName: team.name }),
+      description: t('teamPageDescription', { teamName: team.name }),
+    };
   } catch {
     return { title: t('siteTitle') };
   }
@@ -129,37 +133,33 @@ export default async function TeamPage({ params }: Props) {
   const totalLosses = latestDiv?.losses ?? 0;
   const totalScheduled = latestDiv?.scheduled_count ?? 0;
 
+  const leagueName = teamDivisions[0]?.league_name ?? '';
+
   return (
     <div className="pb-[140px]">
+      <TeamHistoryTracker tid={Number(tid)} name={team.name} leagueName={leagueName} />
       <TopBar
         variant="team"
         locale={locale}
         backLabel={t('back')}
-        shareLabel={t('share')}
       />
 
       {/* Hero header */}
       <div className="px-5 pt-5">
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-[#3b6dff]"
-            style={{ boxShadow: '0 0 6px #3b6dff' }}
-            aria-hidden="true"
-          />
-          <span className="font-mono text-[10px] text-[#5b6478] tracking-[1.5px]">
-            {t('active').toUpperCase()}
-          </span>
-        </div>
-
         <h1 className="text-[30px] font-bold tracking-[-0.02em] text-[#0d1426] mb-1">
           {team.name}
         </h1>
 
         {latestDiv && (
-          <p className="text-[12px] text-[#5b6478]">
+          <a
+            href={`https://tgbleague.com/division.php?gid=${latestDiv.gid}&level_id=${latestDiv.level_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[12px] text-[#5b6478] hover:text-[#3b6dff] transition-colors"
+          >
             {latestDiv.league_name}
             {latestDiv.name ? ` · ${latestDiv.name}` : ''}
-          </p>
+          </a>
         )}
       </div>
 
