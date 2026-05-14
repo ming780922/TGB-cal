@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS games (
   venue             TEXT,
   home_score        INTEGER,
   away_score        INTEGER,
+  video_url         TEXT,
   status            TEXT NOT NULL DEFAULT 'scheduled'
                       CHECK(status IN ('scheduled', 'completed')),
   created_at        INTEGER NOT NULL DEFAULT (unixepoch()),
