@@ -9,7 +9,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_DIR = resolve(__dirname, '../../apps/worker');
 const DB_NAME = 'tgb-cal';
 
-const TARGET = process.env.DB_TARGET === 'local' ? '--local' : '--remote';
+const LOCAL = process.env.DB_TARGET === 'local';
+const TARGET = LOCAL ? '--local --persist-to ../../apps/web/.wrangler/state' : '--remote';
 
 function wrangler(args, opts = {}) {
   return execSync(`npx wrangler d1 execute ${DB_NAME} ${TARGET} ${args}`, {
