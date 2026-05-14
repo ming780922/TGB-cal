@@ -9,8 +9,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const WORKER_DIR = resolve(__dirname, '../../apps/worker');
 const DB_NAME = 'tgb-cal';
 
+const TARGET = process.env.DB_TARGET === 'local' ? '--local' : '--remote';
+
 function wrangler(args, opts = {}) {
-  return execSync(`npx wrangler d1 execute ${DB_NAME} --remote ${args}`, {
+  return execSync(`npx wrangler d1 execute ${DB_NAME} ${TARGET} ${args}`, {
     encoding: 'utf8',
     cwd: WORKER_DIR,
     ...opts,
