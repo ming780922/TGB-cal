@@ -5,7 +5,7 @@ if (!supported.includes(provider)) {
   throw new Error(`Unsupported AI_PROVIDER="${provider}". Choose: ${supported.join(', ')}`);
 }
 
-// Dynamic import so only the chosen SDK is loaded
+// Top-level await is valid in ESM. Dynamic import ensures only the chosen SDK is loaded.
 const { generate } = await import(`./providers/${provider}.js`);
 
 export { generate };

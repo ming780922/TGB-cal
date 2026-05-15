@@ -1,6 +1,10 @@
 import OpenAI from 'openai';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const apiKey = process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  throw new Error('[ai-analysis] OPENAI_API_KEY is required when AI_PROVIDER=openai. Set it in .env or as a GitHub Actions secret.');
+}
+const client = new OpenAI({ apiKey });
 const MODEL = process.env.MODEL || 'gpt-4o';
 
 /**

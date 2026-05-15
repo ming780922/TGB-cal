@@ -14,5 +14,5 @@ export async function generate(prompt) {
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
   });
-  return msg.content[0].type === 'text' ? msg.content[0].text : '';
+  return msg.content[0]?.type === 'text' ? msg.content[0].text : '';
 }
