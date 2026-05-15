@@ -69,4 +69,35 @@ describe('buildMatchupData', () => {
     assert.deepEqual(result.homeTeamGames, []);
     assert.deepEqual(result.awayTeamGames, []);
   });
+
+  it('returns null result for draws (equal scores)', () => {
+    const rawGame = makeRawGame(102, 1, 2, 50, 50);
+    const result = buildMatchupData(meta, [rawGame], []);
+    assert.equal(result.homeTeamGames[0].result, null);
+  });
+
+  it('returns null result when scores are null', () => {
+    const rawGame = makeRawGame(103, 1, 2, null, null);
+    const result = buildMatchupData(meta, [rawGame], []);
+    assert.equal(result.homeTeamGames[0].result, null);
+  });
+
+  it('maps away team win correctly', () => {
+    // Beta (tid=2) played as away, won 60-40
+    const rawGame = makeRawGame(104, 1, 2, 40, 60);
+    const result = buildMatchupData(meta, [], [rawGame]);
+    assert.equal(result.awayTeamGames[0].result, 'win');
+  });
+
+  it('resolves opponent name to team name when opponent is the other matchup team', () => {
+    const rawGame = makeRawGame(100, 1, 2, 50, 40);
+    const result = buildMatchupData(meta, [rawGame], []);
+    assert.equal(result.homeTeamGames[0].opponent, 'Beta');
+  });
+
+  it('falls back to tid string for unknown opponents', () => {
+    const rawGame = makeRawGame(105, 1, 99, 50, 40);
+    const result = buildMatchupData(meta, [rawGame], []);
+    assert.equal(result.homeTeamGames[0].opponent, '99');
+  });
 });

@@ -2,9 +2,10 @@
  * Given a raw game and the perspective team's tid, determine win/loss/null.
  */
 function getResult(rawGame, teamTid) {
+  if (rawGame.homeScore == null || rawGame.awayScore == null) return null;
+  if (rawGame.homeScore === rawGame.awayScore) return null;
   const isHome = rawGame.homeTid === teamTid;
   const homeWon = rawGame.homeScore > rawGame.awayScore;
-  if (rawGame.homeScore === null || rawGame.awayScore === null) return null;
   return isHome ? (homeWon ? 'win' : 'loss') : (homeWon ? 'loss' : 'win');
 }
 
@@ -15,7 +16,7 @@ function getTeamStats(rawGame, teamTid) {
   const isHome = rawGame.homeTid === teamTid;
   return {
     stats: isHome ? rawGame.homeStats : rawGame.awayStats,
-    players: isHome ? rawGame.homePlayers : rawGame.awayPlayers,
+    players: isHome ? (rawGame.homePlayers ?? []) : (rawGame.awayPlayers ?? []),
   };
 }
 
