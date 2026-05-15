@@ -21,8 +21,6 @@ export function buildPrompt(matchupData, perspective) {
   // ── Adjustable section ───────────────────────────────────────────────────
   // Change the persona, the analysis depth, the output format, or the
   // language here without touching any other file.
-  const opponentGamesJson = JSON.stringify(opponentGames, null, 2);
-  const myGamesJson = JSON.stringify(myGames, null, 2);
 
   return `你是一位資深籃球戰術分析師，擅長從統計數據中提煉出具體可執行的賽前建議。
 
@@ -46,13 +44,6 @@ ${opponentGames.length === 0 ? '（本季尚無完賽數據）' : opponentGames.
 
 ## 我方本季參考（${myGames.length} 場）
 ${myGames.length === 0 ? '（尚無數據）' : `最近 ${Math.min(myGames.length, 3)} 場平均得分：${(myGames.slice(-3).reduce((s, g) => s + (g.teamStats.points ?? 0), 0) / Math.min(myGames.length, 3)).toFixed(0)} 分`}
-
-## 原始數據（供參考）
-對手數據 JSON：
-${opponentGamesJson}
-
-我方數據 JSON：
-${myGamesJson}
 
 ## 請根據以上對手數據，提供以下三個部分的分析：
 

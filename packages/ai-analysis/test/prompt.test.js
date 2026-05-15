@@ -31,8 +31,16 @@ describe('buildPrompt', () => {
     assert.ok(prompt.includes('Beta'));
   });
 
-  it('includes game data in JSON form', () => {
-    const prompt = buildPrompt(sampleMatchup, 'home');
-    assert.ok(prompt.includes('"fgPct"') || prompt.includes('fgPct'));
+  it('includes rendered stat values for opponent games', () => {
+    // When away perspective: homeTeamGames become opponent data (fgPct: 0.50 → "50.0%")
+    const prompt = buildPrompt(sampleMatchup, 'away');
+    assert.ok(prompt.includes('50.0%'));
+  });
+
+  it('away perspective uses home team games as opponent data', () => {
+    const prompt = buildPrompt(sampleMatchup, 'away');
+    // homeTeamGames has 1 game vs "Beta"; from away perspective, Alpha's games are opponent data
+    assert.ok(prompt.includes('Alpha'));
+    assert.ok(prompt.includes('Beta'));
   });
 });
