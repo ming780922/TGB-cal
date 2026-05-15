@@ -86,11 +86,12 @@ export async function scrapeEventMeta(gameId) {
  * Scrape stats from a completed game event page.
  *
  * The page has two player stat tables (home team then away team).
- * Each table's last row is the team totals. Column order:
- *   0: player  1: points  2: 2FGM  3: 2FGA  4: 2FG%  5: 3FGM  6: 3FGA
- *   7: 3FG%   8: FTM     9: FTA  10: FT%  11: offReb 12: defReb
- *  13: totalReb  14: assists  15: steals  16: blocks  17: turnovers
- *  18: fouls  19: eff  20: +/-  21: time
+ * Each table's last row is the team totals. Column indices are <td>-only
+ * (the player name is in a <th> and excluded from find('td')):
+ *   0: points  1: 2FGM  2: 2FGA  3: 2FG%  4: 3FGM  5: 3FGA
+ *   6: 3FG%   7: FTM   8: FTA   9: FT%  10: offReb 11: defReb
+ *  12: totalReb  13: assists  14: steals  15: blocks  16: turnovers
+ *  17: fouls  18: eff  19: +/-  20: time
  *
  * @param {number} eid - event page ID of the completed game
  * @returns {RawGameStats | null} null if page can't be parsed
@@ -125,10 +126,18 @@ export async function scrapeEventStats(eid) {
     if (i === 0) return; // header
     const cells = $(row).find('td');
     if (cells.length < 5) return;
-    const quarters = [1, 2, 3, 4].map(q => parseInt($(cells[q]).text().trim()) || 0);
+    // cells[0] = team label, cells[last] = Total; everything between is period scores
+    const periodCount = cells.length - 2;
+    const quarters = Array.from({ length: periodCount }, (_, i) =>
+      parseInt($(cells[i + 1]).text().trim()) || 0
+    );
     if (i === 1) homeQuarters = quarters;
     if (i === 2) awayQuarters = quarters;
   });
+
+  if (!homeQuarters) {
+    console.warn(`[stats] WARNING: eid=${eid} could not parse quarter scores from first table`);
+  }
 
   // Parse player stat tables — find tables that have "得分" in headers
   const teamStatsBlocks = [];
