@@ -116,5 +116,6 @@ async function main() {
 
 main().catch(err => {
   console.error('[ai-analysis] Fatal:', err.message);
+  if (err.stack) console.error(err.stack);
   process.exit(1);
 });
