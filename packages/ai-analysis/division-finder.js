@@ -1,15 +1,7 @@
 import * as cheerio from 'cheerio';
-import { sleep } from './event-scraper.js';
+import { fetchHtml } from './event-scraper.js';
 
 const BASE_URL = process.env.TGB_BASE_URL || 'https://tgbleague.com';
-
-async function fetchHtml(url) {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'TGBAnalysisBot/1.0 (+https://tgb.ming060.com)' },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
-  return res.text();
-}
 
 /**
  * Scrape the division page to find completed game eids for each team.
