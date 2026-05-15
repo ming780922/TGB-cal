@@ -1,6 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const apiKey = process.env.ANTHROPIC_API_KEY;
+if (!apiKey) {
+  throw new Error('[ai-analysis] ANTHROPIC_API_KEY is required when AI_PROVIDER=anthropic.');
+}
+const client = new Anthropic({ apiKey });
 const MODEL = process.env.MODEL || 'claude-sonnet-4-6';
 
 /**

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { scrapeEventMeta, scrapeEventStats, sleep } from './event-scraper.js';
 import { findCompletedGameEids } from './division-finder.js';
 import { buildMatchupData } from './stats-aggregator.js';
@@ -51,8 +52,9 @@ async function main() {
     meta.gid, meta.levelId, meta.home.tid, meta.away.tid
   );
 
-  if (homeEids.length === 0 && awayEids.length === 0) {
-    console.error('\nNo completed games found for either team. Cannot generate analysis.');
+  if (homeEids.length === 0 || awayEids.length === 0) {
+    const which = homeEids.length === 0 ? meta.home.name : meta.away.name;
+    console.error(`\nNo completed games found for ${which} this season. Cannot generate analysis.`);
     process.exit(1);
   }
   console.log();
@@ -75,27 +77,43 @@ async function main() {
   const provider = process.env.AI_PROVIDER || 'anthropic';
   console.log(`  Using provider: ${provider}`);
 
+  let homePerspective = null;
+  let awayPerspective = null;
+
   const homePrompt = buildPrompt(matchupData, 'home');
   console.log(`  Generating analysis for ${meta.home.name} perspective...`);
-  const homePerspective = await generate(homePrompt);
+  try {
+    homePerspective = await generate(homePrompt);
+  } catch (err) {
+    console.error(`  [error] Home perspective failed: ${err.message}`);
+  }
 
   await sleep(500);
 
   const awayPrompt = buildPrompt(matchupData, 'away');
   console.log(`  Generating analysis for ${meta.away.name} perspective...`);
-  const awayPerspective = await generate(awayPrompt);
+  try {
+    awayPerspective = await generate(awayPrompt);
+  } catch (err) {
+    console.error(`  [error] Away perspective failed: ${err.message}`);
+  }
+
+  if (!homePerspective && !awayPerspective) {
+    console.error('[ai-analysis] Both AI calls failed. No output written.');
+    process.exit(1);
+  }
 
   // Output to terminal
   const separator = '═'.repeat(60);
   console.log(`\n${separator}`);
   console.log(`  主隊視角：${meta.home.name} 對陣 ${meta.away.name}`);
   console.log(separator);
-  console.log(homePerspective);
+  console.log(homePerspective ?? '（分析失敗）');
 
   console.log(`\n${separator}`);
   console.log(`  客隊視角：${meta.away.name} 對陣 ${meta.home.name}`);
   console.log(separator);
-  console.log(awayPerspective);
+  console.log(awayPerspective ?? '（分析失敗）');
 
   // Write JSON output
   const output = {
@@ -109,7 +127,7 @@ async function main() {
     away_perspective: awayPerspective,
   };
 
-  const outPath = new URL('./analysis_output.json', import.meta.url).pathname;
+  const outPath = resolve(process.cwd(), 'analysis_output.json');
   writeFileSync(outPath, JSON.stringify(output, null, 2), 'utf8');
   console.log(`\n[ai-analysis] Output written to ${outPath}`);
 }

@@ -36,8 +36,9 @@ jobs:
         run: npm ci
 
       - name: Run AI analysis
-        run: node index.js --game_id="${{ inputs.game_id }}"
+        run: node index.js --game_id="$GAME_ID"
         env:
+          GAME_ID: ${{ inputs.game_id }}
           AI_PROVIDER: ${{ inputs.ai_provider }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
