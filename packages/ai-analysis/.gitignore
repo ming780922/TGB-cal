@@ -1,2 +1,3 @@
 analysis_output.json
+matchup_*.json
 .env
