@@ -186,6 +186,13 @@ Secret `ANTHROPIC_API_KEY` 設定於 repo secrets。
 
 ---
 
+## 關鍵假設
+
+- `event.php?eid=X` 對於尚未出賽的比賽，頁面仍會顯示兩隊名稱及分組連結（用於解析 home_tid、away_tid、level_id、gid）。若頁面結構不同，需改為從 division 頁面反查。
+- 爬取多個 event 頁面時，各請求之間加入 1 秒延遲，避免對 TGB 伺服器造成過大負荷（與現有 scraper 一致）。
+
+---
+
 ## 錯誤處理
 
 - event 頁面無法爬取：記錄警告，跳過該場，繼續分析（數據不足時 prompt 中說明）
