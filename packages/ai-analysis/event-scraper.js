@@ -50,9 +50,15 @@ export async function scrapeEventMeta(gameId) {
     );
   }
 
+  // The TGB event page lists home team first, away team second in the score header.
+  // DOM order of team.php links matches this order (verified against live pages).
   const levelId = teamLinks[0].levelId;
   const home = { tid: teamLinks[0].tid, name: teamLinks[0].name };
   const away = { tid: teamLinks[1].tid, name: teamLinks[1].name };
+
+  if (teamLinks.length > 2) {
+    console.warn(`[meta] WARNING: found ${teamLinks.length} team links on event ${gameId}, expected 2. Using first two.`);
+  }
 
   // Find gid: scan all division.php links for one matching our levelId
   let gid = null;
