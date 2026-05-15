@@ -16,16 +16,12 @@ const MODEL = process.env.MODEL || 'meta/llama-3.1-70b-instruct';
  * @returns {Promise<string>}
  */
 export async function generate(prompt) {
-  const stream = await client.chat.completions.create({
+  const completion = await client.chat.completions.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
-    stream: true,
+    stream: false,
   });
 
-  let result = '';
-  for await (const chunk of stream) {
-    result += chunk.choices[0]?.delta?.content ?? '';
-  }
-  return result;
+  return completion.choices[0]?.message?.content ?? '';
 }
