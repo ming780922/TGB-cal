@@ -1,6 +1,4 @@
 import 'dotenv/config';
-import { writeFileSync } from 'node:fs';
-
 function parseArgs() {
   const args = process.argv.slice(2);
   const params = {};
@@ -8,11 +6,12 @@ function parseArgs() {
     const [key, val] = arg.replace(/^--/, '').split('=');
     params[key] = val;
   }
-  if (!params.game_id) {
+  const gameId = parseInt(params.game_id, 10);
+  if (!params.game_id || !Number.isInteger(gameId) || gameId <= 0) {
     console.error('Usage: node index.js --game_id=<eid>');
     process.exit(1);
   }
-  return { gameId: parseInt(params.game_id) };
+  return { gameId };
 }
 
 async function main() {
