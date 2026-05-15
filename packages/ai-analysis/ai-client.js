@@ -1,6 +1,6 @@
 const provider = process.env.AI_PROVIDER || 'anthropic';
 
-const supported = ['anthropic', 'openai'];
+const supported = ['anthropic', 'openai', 'nvidia'];
 if (!supported.includes(provider)) {
   throw new Error(`Unsupported AI_PROVIDER="${provider}". Choose: ${supported.join(', ')}`);
 }
