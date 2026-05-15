@@ -28,13 +28,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: packages/ai-analysis/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run AI analysis
-        run: node index.js --game_id=${{ inputs.game_id }}
+        run: node index.js --game_id="${{ inputs.game_id }}"
         env:
           AI_PROVIDER: ${{ inputs.ai_provider }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
