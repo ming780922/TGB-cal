@@ -1,0 +1,17 @@
+{
+  "name": "@tgb-calendar/ai-analysis",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.51.0",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.0",
+    "openai": "^4.96.0"
+  }
+}
