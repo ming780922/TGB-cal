@@ -53,10 +53,13 @@ packages/ai-analysis/
 ├── event-scraper.js    # 爬取單場 event.php?eid=X，回傳結構化統計
 ├── division-finder.js  # 從 event 頁解析 division，找出兩隊完賽場次清單
 ├── stats-aggregator.js # 組裝通用數據結構
-├── prompt.js           # Claude prompt 模板（易調整）
-├── claude-client.js    # 呼叫 Claude API，回傳分析文字
-├── .env.example        # ANTHROPIC_API_KEY=...
-└── package.json        # 依賴：cheerio, @anthropic-ai/sdk, dotenv
+├── prompt.js           # prompt 模板（易調整，與 provider 無關）
+├── ai-client.js        # 統一 AI 客戶端，依 AI_PROVIDER 切換實作
+├── providers/
+│   ├── anthropic.js    # Anthropic Claude 實作
+│   └── openai.js       # OpenAI 實作
+├── .env.example        # AI_PROVIDER, ANTHROPIC_API_KEY, OPENAI_API_KEY, MODEL
+└── package.json        # 依賴：cheerio, @anthropic-ai/sdk, openai, dotenv
 ```
 
 ### 資料流
@@ -118,13 +121,13 @@ packages/ai-analysis/
 }
 ```
 
-此結構不依賴任何 TGB 特定識別碼，Claude prompt 可直接消費，未來也可接入其他聯盟數據。
+此結構不依賴任何 TGB 特定識別碼，AI prompt 可直接消費，未來也可接入其他聯盟數據。
 
 ---
 
 ## Prompt 設計
 
-`prompt.js` 獨立維護，修改 prompt 不需動其他程式：
+`prompt.js` 獨立維護，與 provider 無關，修改 prompt 不需動其他程式：
 
 ```js
 export function buildPrompt(matchupData, perspective) {
@@ -133,22 +136,49 @@ export function buildPrompt(matchupData, perspective) {
 }
 ```
 
-Claude API 呼叫兩次：
+AI 呼叫兩次：
+
 1. 以主隊為「我方」，分析客隊對手數據
 2. 以客隊為「我方」，分析主隊對手數據
 
-模型：`claude-sonnet-4-6`（可在 `claude-client.js` 調整）
+---
+
+## AI Provider 設定
+
+透過環境變數切換，不需修改程式碼：
+
+```bash
+# 使用 Anthropic Claude（預設）
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+MODEL=claude-sonnet-4-6
+
+# 使用 OpenAI
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+MODEL=gpt-4o
+```
+
+`ai-client.js` 依 `AI_PROVIDER` 動態載入對應 provider：
+
+- `providers/anthropic.js`：使用 `@anthropic-ai/sdk`
+- `providers/openai.js`：使用 `openai` SDK
+
+兩個 provider 皆實作相同介面 `async function generate(prompt): Promise<string>`，`ai-client.js` 只呼叫此介面，與具體 SDK 完全解耦。
 
 ---
 
 ## 輸入與觸發
 
 ### CLI
+
 ```bash
-ANTHROPIC_API_KEY=sk-... node packages/ai-analysis/index.js --game_id=19487
+AI_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-... node packages/ai-analysis/index.js --game_id=19487
+AI_PROVIDER=openai OPENAI_API_KEY=sk-... node packages/ai-analysis/index.js --game_id=19487
 ```
 
 ### GitHub Actions（`.github/workflows/ai-analysis.yml`）
+
 ```yaml
 on:
   workflow_dispatch:
@@ -157,7 +187,8 @@ on:
         description: 'TGB game ID (eid) of the upcoming match'
         required: true
 ```
-Secret `ANTHROPIC_API_KEY` 設定於 repo secrets。
+
+Secret `AI_PROVIDER`、`ANTHROPIC_API_KEY`（或 `OPENAI_API_KEY`）、`MODEL` 設定於 repo secrets。
 
 ---
 
