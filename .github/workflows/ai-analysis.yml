@@ -1,0 +1,50 @@
+name: AI Matchup Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_id:
+        description: 'TGB game ID (eid) of the target match'
+        required: true
+        type: string
+      ai_provider:
+        description: 'AI provider to use'
+        required: false
+        default: 'anthropic'
+        type: choice
+        options:
+          - anthropic
+          - openai
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ai-analysis
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run AI analysis
+        run: node index.js --game_id=${{ inputs.game_id }}
+        env:
+          AI_PROVIDER: ${{ inputs.ai_provider }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MODEL: ${{ secrets.AI_MODEL }}
+
+      - name: Upload analysis output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analysis-${{ inputs.game_id }}
+          path: packages/ai-analysis/analysis_output.json
+          if-no-files-found: warn
