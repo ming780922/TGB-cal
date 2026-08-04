@@ -32,8 +32,8 @@ interface GameRow {
   status: string;
   home_tid: number;
   away_tid: number;
-  home_name: string;
-  away_name: string;
+  home_name: string | null;
+  away_name: string | null;
   home_score: number | null;
   away_score: number | null;
 }
@@ -103,7 +103,11 @@ export default async function TeamPage({ params }: Props) {
       JOIN divisions d ON d.level_id = td.level_id
       JOIN leagues l ON l.gid = d.gid
       WHERE td.tid = ?
-      ORDER BY (SELECT MAX(g.scheduled_at) FROM games g WHERE g.level_id = d.level_id AND (g.home_tid = td.tid OR g.away_tid = td.tid)) DESC
+      -- A division whose fixtures are not published yet has MAX(scheduled_at) = NULL, which
+      -- SQLite sorts last under DESC — so a team enrolled in a new season would keep showing
+      -- the old one. Rank those first, then by most recent fixture.
+      ORDER BY (SELECT MAX(g.scheduled_at) FROM games g WHERE g.level_id = d.level_id AND (g.home_tid = td.tid OR g.away_tid = td.tid)) IS NULL DESC,
+               (SELECT MAX(g.scheduled_at) FROM games g WHERE g.level_id = d.level_id AND (g.home_tid = td.tid OR g.away_tid = td.tid)) DESC
     `).bind(now, Number(tid)).all<DivisionRow>();
     teamDivisions = divResult.results ?? [];
 
@@ -113,8 +117,10 @@ export default async function TeamPage({ params }: Props) {
              g.home_score, g.away_score,
              ht.name as home_name, away_t.name as away_name
       FROM games g
-      JOIN teams ht ON ht.tid = g.home_tid
-      JOIN teams away_t ON away_t.tid = g.away_tid
+      -- LEFT so a fixture against a not-yet-registered opponent is still listed rather than
+      -- silently dropped; matches the iCal route's behaviour.
+      LEFT JOIN teams ht ON ht.tid = g.home_tid
+      LEFT JOIN teams away_t ON away_t.tid = g.away_tid
       WHERE (g.home_tid = ? OR g.away_tid = ?)
       ORDER BY g.scheduled_at DESC
     `).bind(Number(tid), Number(tid)).all<GameRow>();
@@ -213,10 +219,10 @@ export default async function TeamPage({ params }: Props) {
 
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-medium text-[#0d1426] truncate">
-                        {game.home_name}
+                        {game.home_name ?? '???'}
                       </div>
                       <div className="text-[13px] text-[#5b6478] truncate">
-                        {game.away_name}
+                        {game.away_name ?? '???'}
                       </div>
                       {game.venue && (
                         <div className="font-mono text-[9px] text-[#9ba3b4] truncate mt-0.5">

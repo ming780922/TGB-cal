@@ -3,6 +3,46 @@ import * as cheerio from 'cheerio';
 const TGB_BASE_URL = process.env.TGB_BASE_URL || 'https://tgbleague.com';
 
 /**
+ * Games whose TGB page has no `eid=` link yet (typical for a season that has been
+ * published but not started) get a synthetic id. Real TGB eids are ~5 digits, so
+ * anything at or above this threshold is a placeholder we generated ourselves.
+ *
+ * Legacy placeholders used `1e9 + (scheduledAt % 1e8) + ((homeTid + awayTid) % 100)`,
+ * which omitted level_id entirely — two games tipping off at the same minute in
+ * different divisions collided whenever their tid sums matched mod 100, and the
+ * resulting primary-key violation rolled back the whole division's write. Current
+ * placeholders are hashed over the full game identity into a much wider band; the
+ * threshold stays at 1e9 so both generations are still recognised as placeholders.
+ */
+export const PLACEHOLDER_MIN_ID = 1_000_000_000;
+const PLACEHOLDER_BASE = 2_000_000_000_000;
+const PLACEHOLDER_SPACE = 2 ** 40;
+
+export function isPlaceholderGameId(gameId) {
+  return gameId >= PLACEHOLDER_MIN_ID;
+}
+
+/**
+ * Deterministic synthetic game id derived from the game's full identity.
+ * FNV-1a over `level_id:home_tid:away_tid:scheduled_at`, folded to 40 bits so the
+ * result stays well inside Number.MAX_SAFE_INTEGER and SQLite's INTEGER range.
+ */
+export function placeholderGameId(levelId, homeTid, awayTid, scheduledAt) {
+  // Coerce so a string vs number level_id can never yield two ids for the same game.
+  const key = [levelId, homeTid, awayTid, scheduledAt].map(Number).join(':');
+  // Two independent 32-bit FNV-1a passes (different offset bases) combined into 40 bits.
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < key.length; i++) {
+    const c = key.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0;
+  }
+  const folded = (h1 * 256 + (h2 & 0xff)) % PLACEHOLDER_SPACE;
+  return PLACEHOLDER_BASE + folded;
+}
+
+/**
  * Parse a date string from the TGB website (Taiwan time, UTC+8) to a Unix timestamp.
  * Handles formats like "2025/03/15 19:00", "03/15 19:00", or with Chinese characters.
  */
@@ -129,7 +169,7 @@ export async function scrapeDivision(gid, levelId, leagueName, divisionName) {
     const gameLink = $(cells[5]).find('a[href*="eid="]').first();
     let gameId = gameLink.length
       ? parseInt(gameLink.attr('href')?.match(/eid=(\d+)/)?.[1])
-      : 1000000000 + (scheduledAt % 100000000) + ((homeTid + awayTid) % 100);
+      : placeholderGameId(levelId, homeTid, awayTid, scheduledAt);
 
     if (!gameId) return;
 

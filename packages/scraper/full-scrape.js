@@ -19,7 +19,7 @@ async function main() {
   console.log('[scraper] Starting FULL TGB crawl...');
 
   let successCount = 0;
-  let errorCount = 0;
+  const failures = [];
   const allChangedEvents = [];
 
   try {
@@ -56,7 +56,7 @@ async function main() {
         successCount++;
       } catch (err) {
         console.error(`  - Error processing division ${gid}/${level_id}:`, err.message);
-        errorCount++;
+        failures.push({ gid, level_id, league_name, division_name, message: err.message });
       }
 
       if (i < divisions.length - 1) {
@@ -68,7 +68,10 @@ async function main() {
     console.log('[scraper] Crawl complete.');
     console.log(`- Total Divisions: ${divisions.length}`);
     console.log(`- Successfully Processed: ${successCount}`);
-    console.log(`- Failed: ${errorCount}`);
+    console.log(`- Failed: ${failures.length}`);
+    for (const f of failures) {
+      console.log(`  ✗ ${f.gid}/${f.level_id} — ${f.league_name}, ${f.division_name}: ${f.message}`);
+    }
     console.log('='.repeat(50));
 
     if (allChangedEvents.length > 0) {
@@ -76,6 +79,13 @@ async function main() {
       await sendNotifications(allChangedEvents);
     } else {
       console.log('\n[scraper] No game changes — skipping push notifications.');
+    }
+
+    // Notifications are sent first so a partial run still reaches subscribers, but the job
+    // must go red: a division that silently rolls back is how a whole new season went missing.
+    if (failures.length > 0) {
+      console.error(`\n[scraper] ${failures.length} division(s) failed to persist — failing the run.`);
+      process.exit(1);
     }
   } catch (err) {
     console.error('[scraper] Fatal error during crawl:', err);

@@ -3,6 +3,7 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { isPlaceholderGameId } from './division.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Run wrangler from apps/worker where it is installed and wrangler.toml lives
@@ -32,13 +33,44 @@ export function queryD1(sql) {
   return JSON.parse(out)[0]?.results ?? [];
 }
 
+// D1 occasionally rejects a remote import while another is still settling. These are
+// transient and unrelated to the SQL, so a short backoff clears them; constraint
+// violations are surfaced immediately.
+const TRANSIENT_D1_PATTERNS = [
+  /long-running import/i,
+  /D1_RESET_DO/,
+  /Network connection lost/i,
+  /internal error/i,
+];
+
+function isTransientD1Error(err) {
+  const text = `${err?.message ?? ''}${err?.stdout ?? ''}${err?.stderr ?? ''}`;
+  return TRANSIENT_D1_PATTERNS.some(p => p.test(text));
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 export function executeD1(stmts) {
   const sql = (Array.isArray(stmts) ? stmts : [stmts]).join('\n');
   if (!sql.trim()) return;
   const tmp = join(tmpdir(), `d1_${Date.now()}_${Math.random().toString(36).slice(2)}.sql`);
   writeFileSync(tmp, sql + '\n');
   try {
-    wrangler(`--file ${tmp}`, { stdio: 'inherit' });
+    for (let attempt = 1; ; attempt++) {
+      try {
+        // Piped rather than inherited so the retry check can read wrangler's diagnostics;
+        // the output is echoed to keep the CI log identical to before.
+        process.stdout.write(wrangler(`--file ${tmp}`) ?? '');
+        return;
+      } catch (err) {
+        process.stdout.write(`${err.stdout ?? ''}${err.stderr ?? ''}`);
+        if (attempt >= 3 || !isTransientD1Error(err)) throw err;
+        console.warn(`  - Transient D1 error (attempt ${attempt}/3), retrying in ${attempt * 5}s...`);
+        sleepSync(attempt * 5000);
+      }
+    }
   } finally {
     unlinkSync(tmp);
   }
@@ -80,15 +112,27 @@ export function upsertDivisionData(teams, teamDivisions, games) {
   }
 
   const levelId = games[0].level_id;
+  const scrapedIds = games.map(g => Math.trunc(g.game_id));
+
+  // Look up this division's games *and* any scraped id that already exists elsewhere.
+  // Without the second clause a game that collided with, or moved from, another division
+  // looks new, gets a plain INSERT, and the primary-key violation rolls back the whole
+  // division — teams and standings included.
   const existingGames = queryD1(
-    `SELECT g.game_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid,
+    `SELECT g.game_id, g.level_id, g.scheduled_at, g.venue, g.home_tid, g.away_tid,
             g.status, g.home_score, g.away_score, g.video_url, s.ical_sequence, s.ical_uid
      FROM games g LEFT JOIN game_sync s ON g.game_id = s.game_id
-     WHERE g.level_id = ${levelId}`
+     WHERE g.level_id = ${levelId} OR g.game_id IN (${scrapedIds.join(',')})`
   );
 
   const existingById = new Map(existingGames.map(g => [g.game_id, g]));
-  const tempGames = existingGames.filter(g => g.game_id >= 1_000_000_000);
+  // Placeholder rows in this division are promotion candidates: when the real eid finally
+  // appears (or our hash changes) the new row inherits their ical_uid instead of the
+  // subscriber seeing the event vanish and come back.
+  const tempGames = existingGames.filter(
+    g => g.level_id === levelId && isPlaceholderGameId(g.game_id) && !scrapedIds.includes(g.game_id)
+  );
+  const claimedTempIds = new Set();
 
   const deleteStmts = [];
   const gameStmts = [];
@@ -98,32 +142,41 @@ export function upsertDivisionData(teams, teamDivisions, games) {
     let inheritedSync = null;
 
     if (!existing && game.home_tid != null && game.away_tid != null) {
-      const exactMatch = tempGames.find(g =>
+      // A claimed placeholder is removed from the pool: letting two games inherit the same
+      // row's ical_uid trips the UNIQUE constraint on game_sync.ical_uid.
+      const available = tempGames.filter(g => !claimedTempIds.has(g.game_id));
+      const exactMatch = available.find(g =>
         g.home_tid === game.home_tid && g.away_tid === game.away_tid && g.scheduled_at === game.scheduled_at
       );
-      if (exactMatch) {
-        inheritedSync = { uid: exactMatch.ical_uid, seq: exactMatch.ical_sequence };
-        deleteStmts.push(`DELETE FROM games WHERE game_id = ${exactMatch.game_id};`);
-      } else {
-        const scheduled = tempGames.filter(g =>
-          g.home_tid === game.home_tid && g.away_tid === game.away_tid && g.status === 'scheduled'
-        );
-        if (scheduled.length === 1) {
-          inheritedSync = { uid: scheduled[0].ical_uid, seq: scheduled[0].ical_sequence };
-          deleteStmts.push(`DELETE FROM games WHERE game_id = ${scheduled[0].game_id};`);
-        }
+      const scheduled = available.filter(g =>
+        g.home_tid === game.home_tid && g.away_tid === game.away_tid && g.status === 'scheduled'
+      );
+      const claim = exactMatch ?? (scheduled.length === 1 ? scheduled[0] : null);
+      if (claim) {
+        inheritedSync = { uid: claim.ical_uid, seq: claim.ical_sequence };
+        claimedTempIds.add(claim.game_id);
+        deleteStmts.push(`DELETE FROM games WHERE game_id = ${claim.game_id};`);
       }
     }
 
     if (!existing) {
-      const uid = inheritedSync ? inheritedSync.uid : `game-${game.game_id}@tgb.ming060.com`;
-      const seq = inheritedSync ? inheritedSync.seq + 1 : 0;
+      // ical_uid/ical_sequence come from a LEFT JOIN, so they are NULL whenever a games row
+      // exists without its game_sync partner — inheriting blindly violates NOT NULL.
+      const uid = inheritedSync?.uid ?? `game-${game.game_id}@tgb.ming060.com`;
+      const seq = inheritedSync ? (inheritedSync.seq ?? 0) + 1 : 0;
+      // ON CONFLICT rather than a bare INSERT: wrangler runs the division's statements as one
+      // all-or-nothing file, so a single constraint violation would discard the teams and
+      // standings written alongside these games.
       gameStmts.push(
         `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, created_at, updated_at)
-         VALUES (${esc(game.game_id)}, ${esc(game.level_id)}, ${esc(game.home_tid)}, ${esc(game.away_tid)}, ${esc(game.scheduled_at)}, ${esc(game.venue)}, ${esc(game.home_score)}, ${esc(game.away_score)}, ${esc(game.status)}, ${now}, ${now});`
+         VALUES (${esc(game.game_id)}, ${esc(game.level_id)}, ${esc(game.home_tid)}, ${esc(game.away_tid)}, ${esc(game.scheduled_at)}, ${esc(game.venue)}, ${esc(game.home_score)}, ${esc(game.away_score)}, ${esc(game.status)}, ${now}, ${now})
+         ON CONFLICT(game_id) DO UPDATE SET level_id=excluded.level_id, home_tid=excluded.home_tid, away_tid=excluded.away_tid,
+           scheduled_at=excluded.scheduled_at, venue=excluded.venue, home_score=excluded.home_score,
+           away_score=excluded.away_score, status=excluded.status, updated_at=${now};`
       );
       gameStmts.push(
-        `INSERT INTO game_sync (game_id, ical_uid, ical_sequence, updated_at) VALUES (${esc(game.game_id)}, ${esc(uid)}, ${seq}, ${now});`
+        `INSERT INTO game_sync (game_id, ical_uid, ical_sequence, updated_at) VALUES (${esc(game.game_id)}, ${esc(uid)}, ${seq}, ${now})
+         ON CONFLICT(game_id) DO UPDATE SET ical_sequence = game_sync.ical_sequence + 1, updated_at=${now};`
       );
       counts.games_inserted++;
       if (game.home_tid) changedEvents.push({ tid: game.home_tid, event_type: 'new_game', game_id: game.game_id });
@@ -177,6 +230,14 @@ export function upsertDivisionData(teams, teamDivisions, games) {
     }
   }
 
+  // Placeholders the scrape no longer lists are gone for good — cancelled, rescheduled, or
+  // re-hashed under the current id scheme. Without this they linger forever and show up as
+  // duplicate fixtures on the team page. game_sync follows via ON DELETE CASCADE.
+  const reapStmts = [
+    `DELETE FROM games WHERE level_id = ${esc(levelId)} AND game_id >= 1000000000
+       AND game_id NOT IN (${scrapedIds.join(',')});`,
+  ];
+
   const affectedTids = [...new Set(changedEvents.map(e => e.tid))];
   const syncStmts = affectedTids.map(tid =>
     `INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at, updated_at)
@@ -184,7 +245,7 @@ export function upsertDivisionData(teams, teamDivisions, games) {
      ON CONFLICT(tid) DO UPDATE SET last_modified_at=${now}, ical_etag='', ical_cached=NULL, updated_at=${now};`
   );
 
-  executeD1([...teamStmts, ...tdStmts, ...deleteStmts, ...gameStmts, ...syncStmts]);
+  executeD1([...teamStmts, ...tdStmts, ...deleteStmts, ...gameStmts, ...reapStmts, ...syncStmts]);
 
   const seen = new Set();
   const changed = changedEvents.filter(e => {
