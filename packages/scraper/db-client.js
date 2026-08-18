@@ -153,7 +153,13 @@ export function upsertDivisionData(teams, teamDivisions, games) {
       );
       const claim = exactMatch ?? (scheduled.length === 1 ? scheduled[0] : null);
       if (claim) {
-        inheritedSync = { uid: claim.ical_uid, seq: claim.ical_sequence };
+        inheritedSync = {
+          uid: claim.ical_uid,
+          seq: claim.ical_sequence,
+          moved:
+            claim.scheduled_at !== game.scheduled_at ||
+            (claim.venue ?? null) !== (game.venue ?? null),
+        };
         claimedTempIds.add(claim.game_id);
         deleteStmts.push(`DELETE FROM games WHERE game_id = ${claim.game_id};`);
       }
@@ -168,19 +174,31 @@ export function upsertDivisionData(teams, teamDivisions, games) {
       // all-or-nothing file, so a single constraint violation would discard the teams and
       // standings written alongside these games.
       gameStmts.push(
-        `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, created_at, updated_at)
-         VALUES (${esc(game.game_id)}, ${esc(game.level_id)}, ${esc(game.home_tid)}, ${esc(game.away_tid)}, ${esc(game.scheduled_at)}, ${esc(game.venue)}, ${esc(game.home_score)}, ${esc(game.away_score)}, ${esc(game.status)}, ${now}, ${now})
+        `INSERT INTO games (game_id, level_id, home_tid, away_tid, scheduled_at, venue, home_score, away_score, status, video_url, created_at, updated_at)
+         VALUES (${esc(game.game_id)}, ${esc(game.level_id)}, ${esc(game.home_tid)}, ${esc(game.away_tid)}, ${esc(game.scheduled_at)}, ${esc(game.venue)}, ${esc(game.home_score)}, ${esc(game.away_score)}, ${esc(game.status)}, ${esc(game.video_url)}, ${now}, ${now})
          ON CONFLICT(game_id) DO UPDATE SET level_id=excluded.level_id, home_tid=excluded.home_tid, away_tid=excluded.away_tid,
            scheduled_at=excluded.scheduled_at, venue=excluded.venue, home_score=excluded.home_score,
-           away_score=excluded.away_score, status=excluded.status, updated_at=${now};`
+           away_score=excluded.away_score, status=excluded.status, video_url=excluded.video_url, updated_at=${now};`
       );
       gameStmts.push(
         `INSERT INTO game_sync (game_id, ical_uid, ical_sequence, updated_at) VALUES (${esc(game.game_id)}, ${esc(uid)}, ${seq}, ${now})
          ON CONFLICT(game_id) DO UPDATE SET ical_sequence = game_sync.ical_sequence + 1, updated_at=${now};`
       );
       counts.games_inserted++;
-      if (game.home_tid) changedEvents.push({ tid: game.home_tid, event_type: 'new_game', game_id: game.game_id });
-      if (game.away_tid) changedEvents.push({ tid: game.away_tid, event_type: 'new_game', game_id: game.game_id });
+      // Which branch a game lands in says nothing about what happened to it: a fixture TGB
+      // published without an eid lives under a placeholder id and reappears under its real eid
+      // once it has been played, so an unseen game_id is routinely a finished game. Classify by
+      // the scraped state instead. A claimed placeholder is a fixture subscribers already have,
+      // so nothing but a genuine time/venue move is worth a push.
+      const eventType =
+        game.home_score != null && game.away_score != null ? 'game_completed'
+        : inheritedSync ? (inheritedSync.moved ? 'game_rescheduled' : null)
+        : 'new_game';
+      if (eventType) {
+        for (const tid of [game.home_tid, game.away_tid]) {
+          if (tid) changedEvents.push({ tid, event_type: eventType, game_id: game.game_id });
+        }
+      }
     } else if (existing.scheduled_at > now) {
       const changed =
         existing.scheduled_at !== game.scheduled_at ||
