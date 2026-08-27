@@ -5,9 +5,12 @@ const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT;
 
-const EVENT_PRIORITY = ['game_completed', 'video_url_added', 'new_game', 'game_rescheduled'];
+// A cancellation is the most actionable thing a subscriber can learn — it is the one event
+// that tells them not to show up — so it outranks everything else for a given team.
+const EVENT_PRIORITY = ['game_cancelled', 'game_completed', 'video_url_added', 'new_game', 'game_rescheduled'];
 
 const EVENT_BODY = {
+  game_cancelled: '比賽已取消',
   new_game: '新比賽已排定',
   game_completed: '比賽結果出爐',
   game_rescheduled: '比賽時間/地點更動',

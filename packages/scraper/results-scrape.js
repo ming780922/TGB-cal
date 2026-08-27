@@ -31,7 +31,7 @@ async function main() {
       console.log(`  - scraped ${data.games.length} games`);
 
       const result = upsertDivisionData(data.teams, data.team_divisions, data.games);
-      console.log(`  - updated: games=${result.counts.games_updated}`);
+      console.log(`  - updated: games=${result.counts.games_updated}, cancelled=${result.counts.games_deleted}`);
 
       if (result.changed?.length > 0) {
         allChangedEvents.push(...result.changed);

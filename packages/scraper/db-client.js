@@ -90,9 +90,39 @@ export function upsertMetadata(leagues, divisions) {
   ]);
 }
 
+/**
+ * Decide which of a division's existing games the current scrape says are gone.
+ *
+ * A game the division page no longer lists is cancelled, rescheduled out, or (for placeholders)
+ * re-hashed under the current id scheme. Left in place it lingers forever as a phantom fixture.
+ *
+ * Placeholders are reaped unconditionally: they carry no TGB identity, so a missing one is never
+ * recoverable. Real eids are reaped only while still in the future — a *past* real-eid game
+ * vanishing from the page is far more likely a parse hiccup or a markup change than a
+ * cancellation, and a completed game is history worth keeping.
+ *
+ * Games already claimed for placeholder→eid promotion are excluded: they are deleted by the
+ * promotion path, and reaping them again would double-count the division's cancellations.
+ *
+ * Known limitation: a real-eid game that moves to a different division is reaped here and
+ * re-inserted fresh by the new division's scrape, losing its ical_uid. Placeholders already
+ * behave this way; the future-only guard keeps the blast radius small.
+ *
+ * Pure — exported for tests.
+ */
+export function selectCancelledGames(existingGames, { levelId, scrapedIds, claimedTempIds, now }) {
+  const scraped = new Set(scrapedIds);
+  return existingGames.filter(g =>
+    g.level_id === levelId &&
+    !scraped.has(g.game_id) &&
+    !claimedTempIds.has(g.game_id) &&
+    (isPlaceholderGameId(g.game_id) || g.scheduled_at > now)
+  );
+}
+
 export function upsertDivisionData(teams, teamDivisions, games) {
   const now = Math.floor(Date.now() / 1000);
-  const counts = { teams_inserted: 0, teams_updated: 0, team_divisions: 0, games_inserted: 0, games_updated: 0 };
+  const counts = { teams_inserted: 0, teams_updated: 0, team_divisions: 0, games_inserted: 0, games_updated: 0, games_deleted: 0 };
   const changedEvents = [];
 
   const teamStmts = teams.map(t =>
@@ -248,15 +278,30 @@ export function upsertDivisionData(teams, teamDivisions, games) {
     }
   }
 
-  // Placeholders the scrape no longer lists are gone for good — cancelled, rescheduled, or
-  // re-hashed under the current id scheme. Without this they linger forever and show up as
-  // duplicate fixtures on the team page. game_sync follows via ON DELETE CASCADE.
-  const reapStmts = [
-    `DELETE FROM games WHERE level_id = ${esc(levelId)} AND game_id >= 1000000000
-       AND game_id NOT IN (${scrapedIds.join(',')});`,
-  ];
+  const cancelled = selectCancelledGames(existingGames, { levelId, scrapedIds, claimedTempIds, now });
 
-  const affectedTids = [...new Set(changedEvents.map(e => e.tid))];
+  const reapStmts = cancelled.length > 0
+    ? [`DELETE FROM games WHERE game_id IN (${cancelled.map(g => Math.trunc(g.game_id)).join(',')});`]
+    : [];
+  counts.games_deleted = cancelled.length;
+
+  // Every reaped game's teams must have their iCal cache busted, or the feed keeps serving the
+  // cancelled VEVENT forever (the team page reads D1 live, so it self-corrects — the cache does
+  // not). Only *future* cancellations are worth waking a subscriber's phone for, so past ones
+  // contribute to affectedTids without becoming a push event.
+  const cancelledTids = new Set();
+  for (const g of cancelled) {
+    for (const tid of [g.home_tid, g.away_tid]) {
+      if (!tid) continue;
+      cancelledTids.add(tid);
+      if (g.scheduled_at > now) {
+        changedEvents.push({ tid, event_type: 'game_cancelled', game_id: g.game_id });
+      }
+    }
+  }
+
+  const affectedTids = [...new Set([...changedEvents.map(e => e.tid), ...cancelledTids])];
+
   const syncStmts = affectedTids.map(tid =>
     `INSERT INTO team_sync (tid, last_modified_at, ical_etag, ical_cached, ical_generated_at, updated_at)
      VALUES (${tid}, ${now}, '', NULL, NULL, ${now})

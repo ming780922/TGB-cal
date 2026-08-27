@@ -48,7 +48,7 @@ async function main() {
         
         const result = upsertDivisionData(data.teams, data.team_divisions, data.games);
         
-        console.log(`  - Done: teams=${JSON.stringify(result.counts.teams_inserted + result.counts.teams_updated)}, games=${JSON.stringify(result.counts.games_inserted + result.counts.games_updated)}`);
+        console.log(`  - Done: teams=${result.counts.teams_inserted + result.counts.teams_updated}, games=${result.counts.games_inserted + result.counts.games_updated}, cancelled=${result.counts.games_deleted}`);
 
         if (Array.isArray(result.changed)) {
           allChangedEvents.push(...result.changed);

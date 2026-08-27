@@ -12,7 +12,8 @@
     "build:web": "pnpm --filter @tgb-calendar/web pages:build",
     "db:migrate": "npx wrangler d1 migrations apply tgb-cal --local --persist-to apps/web/.wrangler/state --config apps/web/wrangler.toml",
     "db:reset": "rm -rf .wrangler apps/web/.wrangler && pnpm db:migrate",
-    "scrape": "node packages/scraper/index.js"
+    "scrape": "node packages/scraper/index.js",
+    "test": "node --test tests/cancelled-games.test.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
