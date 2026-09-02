@@ -321,6 +321,13 @@ export function upsertDivisionData(teams, teamDivisions, games) {
   return { counts, changed };
 }
 
+// Games older than this stop being chased hourly. Without a lower bound the video_url IS NULL
+// clause never stops matching — most past games never get a video — so every division that has
+// ever played stays "pending" forever and the hourly run re-scrapes all of them. full-scrape.js
+// still sweeps everything once a day, so a score or video that lands later is not lost, it just
+// arrives on the daily pass instead of the hourly one.
+const PENDING_WINDOW_SECONDS = 7 * 86400;
+
 export function queryPendingDivisions() {
   return queryD1(
     `SELECT DISTINCT d.level_id, d.gid, d.name as division_name, l.name as league_name
@@ -328,6 +335,7 @@ export function queryPendingDivisions() {
      JOIN divisions d ON g.level_id = d.level_id
      JOIN leagues l ON d.gid = l.gid
      WHERE g.scheduled_at < unixepoch()
+       AND g.scheduled_at > unixepoch() - ${PENDING_WINDOW_SECONDS}
        AND (g.status != 'completed' OR g.video_url IS NULL)`
   );
 }
